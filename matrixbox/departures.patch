@@ -1,28 +1,59 @@
 --- a/departures/functions.py
 +++ b/departures/functions.py
-@@ -8,7 +8,11 @@
+@@ -8,7 +8,16 @@
  #ap_name = "t-skylt" + id[-2:]; varinit.ap_name = ap_name
  ap_name = "matrixbox-" + "".join(mac).replace("0x","")[:3] # mac-id för hotspot
  
-+# Landen die niet via data.t-skylt.se gaan maar via een eigen server: land -> (host, poort)
-+custom_apis = {"rs": ("matrixbox-belgrado.emieljanssens.workers.dev", 80)}
-+def api_host(country): return custom_apis.get(country, ("data.t-skylt.se", 90))
++# Landen/vervoerders die niet via data.t-skylt.se gaan maar via een eigen server: "land" of "land/vervoerder" -> (host, poort)
++_own = ("matrixbox-belgrado.emieljanssens.workers.dev", 80)
++custom_apis = {"rs": _own, "es/renfe": _own}
++# Vast IP-adres voor de eigen server: de DNS-lookup op de MatrixBox faalt geregeld pas na ~14 s.
++# Werkt het IP niet (meer), dan valt fetch_data terug op een gewone DNS-lookup.
++fixed_ips = {_own[0]: "104.21.43.254"}
++def api_host(country, operator=""):
++    return custom_apis.get(country + "/" + operator) or custom_apis.get(country) or ("data.t-skylt.se", 90)
  
 +
  def pwd_gen(): return id.replace("0x","")[:8]
  def cls(__screen, _refresh=False):
      __screen.fill(0)
-@@ -174,7 +178,8 @@
+@@ -174,7 +183,8 @@
      operator = varinit.settings["stations"]["1"]["operator"]
      siteid = varinit.settings["stations"]["1"]["siteid"]
      if not len(varinit.deviations_list):
 -        data = fetch_data(host="data.t-skylt.se", port=90, args="/get_deviations?country=" + country + "&operator=" + operator + "&station=" + siteid)
-+        _host, _port = api_host(country)
++        _host, _port = api_host(country, operator)
 +        data = fetch_data(host=_host, port=_port, args="/get_deviations?country=" + country + "&operator=" + operator + "&station=" + siteid)
          data = json.loads(data)
          varinit.deviations_list = data
      print(*varinit.deviations_list, sep='\n')
-@@ -413,7 +418,8 @@
+@@ -358,6 +368,7 @@
+         if not varinit.group.hidden: return lights(False)
+     else: lights(True)
+     
++_addr_cache = {}
+ def fetch_data(host, port=80, args="", headers = "", filetype="text"):
+     if varinit.if_long > 128 and not int(varinit.settings["listmode"]): version_delay(slowdown=1)
+     
+@@ -388,7 +399,16 @@
+             cache = bytearray(1024)                                # MAX FILESIZE
+             #s.setblocking(False)
+             s.settimeout(varinit.socket_timeout)
+-            s.connect((host, port))
++            # IP-adres onthouden: de DNS-lookup op de ESP32 faalt geregeld pas na ~14 s, en dan staat alles stil
++            addr = _addr_cache.get((host, port))
++            if not addr and host in fixed_ips: addr = (fixed_ips[host], port)
++            if not addr: addr = pool.getaddrinfo(host, port)[0][-1]
++            _addr_cache[(host, port)] = addr
++            try: s.connect(addr)
++            except:
++                _addr_cache.pop((host, port), None)
++                fixed_ips.pop(host, None)
++                raise
+             sent = s.sendall(request)
+             #buff = bytearray(512)
+             buff = bytearray(512)
+@@ -413,7 +433,8 @@
      except: print("Reading error")
      
      try:
@@ -32,12 +63,12 @@
          date = date.split("\r\n")[0]
          varinit.currenttime = convert_date(date)
      except: pass
-@@ -528,7 +534,8 @@
+@@ -528,7 +549,8 @@
      else:
        try: 
          temperature_check()
 -        _data = fetch_data(host="data.t-skylt.se", port=90, args='/get_departures?country=' + varinit.settings["stations"][num]["country"] + '&operator=' + varinit.settings["stations"][num]["operator"] + "&station=" + str(varinit.settings["stations"][num]["siteid"]))
-+        _host, _port = api_host(varinit.settings["stations"][num]["country"])
++        _host, _port = api_host(varinit.settings["stations"][num]["country"], varinit.settings["stations"][num]["operator"])
 +        _data = fetch_data(host=_host, port=_port, args='/get_departures?country=' + varinit.settings["stations"][num]["country"] + '&operator=' + varinit.settings["stations"][num]["operator"] + "&station=" + str(varinit.settings["stations"][num]["siteid"]))
          if _data: data = json.loads(_data)
          else: 
@@ -49,7 +80,7 @@
                  datastr = """<option value=""" + "\"" + "0" +  "\"" + """>""" + varinit.dicts.language[varinit.settings["language"]]["display"]["select_station"] + """</option>"""
  
 -                data  = functions.fetch_data("data.t-skylt.se", 90, "/search_stop?country=" + varinit.settings["stations"][num]["country"] + "&operator=" + varinit.settings["stations"][num]["operator"] + "&station=" + request.params["sstring"])
-+                data  = functions.fetch_data(*functions.api_host(varinit.settings["stations"][num]["country"]), args="/search_stop?country=" + varinit.settings["stations"][num]["country"] + "&operator=" + varinit.settings["stations"][num]["operator"] + "&station=" + request.params["sstring"])
++                data  = functions.fetch_data(*functions.api_host(varinit.settings["stations"][num]["country"], varinit.settings["stations"][num]["operator"]), args="/search_stop?country=" + varinit.settings["stations"][num]["country"] + "&operator=" + varinit.settings["stations"][num]["operator"] + "&station=" + request.params["sstring"])
                  data = json.loads(data)                  
                  try:
                      for stations in data:
@@ -58,20 +89,22 @@
      datastr = '<option value="0">' + varinit.dicts.language[varinit.settings["language"]]["display"]["select_station"] + '</option>'
      try:
 -        data = functions.fetch_data("data.t-skylt.se", 90, "/search_stop?country=" + varinit.settings["stations"][num]["country"] + "&operator=" + varinit.settings["stations"][num]["operator"] + "&station=" + sstring)
-+        data = functions.fetch_data(*functions.api_host(varinit.settings["stations"][num]["country"]), args="/search_stop?country=" + varinit.settings["stations"][num]["country"] + "&operator=" + varinit.settings["stations"][num]["operator"] + "&station=" + sstring)
++        data = functions.fetch_data(*functions.api_host(varinit.settings["stations"][num]["country"], varinit.settings["stations"][num]["operator"]), args="/search_stop?country=" + varinit.settings["stations"][num]["country"] + "&operator=" + varinit.settings["stations"][num]["operator"] + "&station=" + sstring)
          data = json.loads(data)
          datalist = []
          for stations in data:
 --- a/departures/web.py
 +++ b/departures/web.py
-@@ -23,6 +23,7 @@
+@@ -23,7 +23,8 @@
    "pt":[["carris","Carris"]],
    "pl":[["wa","Warsaw"],["kr","Krakow"],["wa_tram","Warszawa Tram"],["plk","PLK"]],
    "at":[["wl","Vienna"]],
+-  "es":[["barcelona","Barcelona (AMB)"]],
 +  "rs":[["bg","Belgrade (GSP, timetable)"]],
-   "es":[["barcelona","Barcelona (AMB)"]],
++  "es":[["barcelona","Barcelona (AMB)"],["renfe","Renfe (Cercanías + AVE/LD, live)"]],
    "ie":[["all","All real-time operators"]],
    "de":[["local","Germany (gtfs.de)"],["db_trains","DB-trains (Deutsche Bahn)"],["be","Berlin (Unofficial API)"],["vbb","VBB/BVG (Berlin-Brandenburg)"],["vrr","VRR (Rhein-Ruhr)"],["kvv","KVV (Karlsruhe)"],["rmv","RMV (Frankfurt)"],["hochbahn","HVV (Hamburg etc.)"],["vrn","VRN (Rhein-Neckar)"],["vbn","VBN (Bremen-Niedersachsen)"],["vvo","VVO (Dresden)"]]
+ }
 --- a/departures/dicts.py
 +++ b/departures/dicts.py
 @@ -28,6 +28,7 @@
@@ -91,3 +124,16 @@
            "us":"USA"}
    try: return names[country]
    except: return country
+--- a/lib/ampule.py
++++ b/lib/ampule.py
+@@ -183,6 +183,10 @@
+         #print("OS Error with socket:", e)
+         raise e
+ 
++    # Nooit eeuwig wachten op een browser die een verbinding opent maar niets stuurt (Chrome preconnect):
++    # zonder timeout bevriest de hele MatrixBox (scherm + webinterface).
++    try: client.settimeout(3)
++    except: pass
+     try:
+         request = __read_request(client)
+         if request is None:
