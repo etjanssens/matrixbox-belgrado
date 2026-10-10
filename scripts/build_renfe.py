@@ -6,7 +6,7 @@ De GitHub Action draait dit elke nacht. De Worker legt er daarna live vertraging
 
 Uitvoer (standaard ./public/renfe):
   stops.json          [[stop_id, stop_id, naam, richting-hint], ...]  (zelfde vorm als Belgrado)
-  dep/<stop_id>.json  {"l": [[lijn, modus, bestemming], ...],
+  dep/<stop_id>.json  {"l": [[lijn, modus, bestemming, 0, kleur], ...],
                        "d": {"YYYYMMDD": [[minuten, lijn-index, trip_id], ...], ...}}
 
 Gebruik:
@@ -36,6 +36,16 @@ LD_NAMES = {
     "AVE": "AVE", "AVE INT": "AVE", "ALVIA": "ALV", "Intercity": "IC", "MD": "MD", "REGIONAL": "REG",
     "REG.EXP.": "REX", "AVANT": "AVT", "AVANT EXP": "AVT", "AVLO": "AVL", "EUROMED": "EMD",
     "PROXIMDAD": "PRX", "TRENCELTA": "TC",
+}
+
+
+# Kleuren voor de lange afstand (in de GTFS staat daar alleen grijswit). Geen officiële codes gevonden:
+# Renfe-paars voor de premium-treinen, en eigen keuzes voor de rest. Cercanías gebruikt route_color uit de GTFS.
+LD_COLORS = {
+    "AVE": "8A1C82", "AVE INT": "8A1C82", "ALVIA": "8A1C82", "EUROMED": "8A1C82", "Intercity": "8A1C82",
+    "AVLO": "C13BD4", "AVANT": "E87722", "AVANT EXP": "E87722",
+    "MD": "F2B700", "REGIONAL": "F2B700", "REG.EXP.": "F2B700", "TRENCELTA": "F2B700",
+    "PROXIMDAD": "E2001A",
 }
 
 
@@ -84,9 +94,13 @@ def build(feeds, out):
         routes = {}
         for r in read_csv(zf, "routes.txt"):
             short = r["route_short_name"]
+            color = r.get("route_color", "")
             if kind == "ld":
+                color = LD_COLORS.get(short, "")
                 short = LD_NAMES.get(short, short[:3])
-            routes[r["route_id"]] = (short, "BUS" if r["route_type"] == "3" else "TRAIN")
+            if r["route_type"] == "3":
+                color = "888888"
+            routes[r["route_id"]] = (short, "BUS" if r["route_type"] == "3" else "TRAIN", color)
 
         dates = active_dates(zf, window)
         trips = {}
@@ -102,10 +116,10 @@ def build(feeds, out):
                     (int(st["stop_sequence"]), st["stop_id"], st["departure_time"], st.get("pickup_type", "0")))
 
         for trip_id, stops in stop_times.items():
-            (line, mode), headsign, trip_dates = trips[trip_id]
+            (line, mode, color), headsign, trip_dates = trips[trip_id]
             stops.sort()
             dest = headsign or names.get(stops[-1][1], "")
-            info = (line, mode, dest)
+            info = (line, mode, dest, 0, color)  # 0 = geen richting, zelfde opbouw als Belgrado + kleur
             for _, stop_id, dep, pickup in stops[:-1]:  # op de eindhalte vertrekt niets
                 if pickup == "1":
                     continue

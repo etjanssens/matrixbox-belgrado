@@ -158,12 +158,14 @@ async function departures(env, feed, ids, now) {
   found.sort((a, b) => a.sec - b.sec);
   const today = day(local, 0).base;
   return {
-    departures: found.slice(0, MAX_DEPARTURES).map(({ sec, info: [line, mode, headsign, dir], rt }) => ({
+    departures: found.slice(0, MAX_DEPARTURES).map(({ sec, info: [line, mode, headsign, dir, color], rt }) => ({
       destination: rt?.canceled ? "CANC " + headsign : headsign,
       direction_code: dir || 0,
       // Lokale tijd, zonder tijdzone, net als data.t-skylt.se
       expected: new Date(today + sec * 1000).toISOString().slice(0, 19),
       line: { id: line, transport_mode: mode },
+      // Lijnkleur (hex, zonder #); de aangepaste MatrixBox kleurt daarmee de lijnaanduiding bij Renfe
+      color: color || "",
       // "#" = live data bekend; de MatrixBox toont dat teken als "rt_indicator" aanstaat
       deviations: rt ? "#" : [],
     })),
