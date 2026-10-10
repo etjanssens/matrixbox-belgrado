@@ -1,28 +1,30 @@
 --- a/departures/functions.py
 +++ b/departures/functions.py
-@@ -8,7 +8,11 @@
+@@ -8,7 +8,13 @@
  #ap_name = "t-skylt" + id[-2:]; varinit.ap_name = ap_name
  ap_name = "matrixbox-" + "".join(mac).replace("0x","")[:3] # mac-id för hotspot
  
-+# Landen die niet via data.t-skylt.se gaan maar via een eigen server: land -> (host, poort)
-+custom_apis = {"rs": ("matrixbox-belgrado.emieljanssens.workers.dev", 80)}
-+def api_host(country): return custom_apis.get(country, ("data.t-skylt.se", 90))
++# Landen/vervoerders die niet via data.t-skylt.se gaan maar via een eigen server: "land" of "land/vervoerder" -> (host, poort)
++_own = ("matrixbox-belgrado.emieljanssens.workers.dev", 80)
++custom_apis = {"rs": _own, "es/renfe": _own}
++def api_host(country, operator=""):
++    return custom_apis.get(country + "/" + operator) or custom_apis.get(country) or ("data.t-skylt.se", 90)
  
 +
  def pwd_gen(): return id.replace("0x","")[:8]
  def cls(__screen, _refresh=False):
      __screen.fill(0)
-@@ -213,7 +217,8 @@
+@@ -213,7 +219,8 @@
      operator = varinit.settings["stations"]["1"]["operator"]
      siteid = varinit.settings["stations"]["1"]["siteid"]
      if not len(varinit.deviations_list):
 -        data = fetch_data(host="data.t-skylt.se", port=90, args="/get_deviations?country=" + country + "&operator=" + operator + "&station=" + siteid)
-+        _host, _port = api_host(country)
++        _host, _port = api_host(country, operator)
 +        data = fetch_data(host=_host, port=_port, args="/get_deviations?country=" + country + "&operator=" + operator + "&station=" + siteid)
          data = json.loads(data)
          varinit.deviations_list = data
      print(*varinit.deviations_list, sep='\n')
-@@ -456,7 +461,8 @@
+@@ -456,7 +463,8 @@
      except: print("Reading error")
      
      try:
@@ -32,16 +34,59 @@
          date = date.split("\r\n")[0]
          varinit.currenttime = convert_date(date)
      except: pass
-@@ -571,7 +577,8 @@
+@@ -571,7 +579,8 @@
      else:
        try: 
          temperature_check()
 -        _data = fetch_data(host="data.t-skylt.se", port=90, args='/get_departures?country=' + varinit.settings["stations"][num]["country"] + '&operator=' + varinit.settings["stations"][num]["operator"] + "&station=" + str(varinit.settings["stations"][num]["siteid"]))
-+        _host, _port = api_host(varinit.settings["stations"][num]["country"])
++        _host, _port = api_host(varinit.settings["stations"][num]["country"], varinit.settings["stations"][num]["operator"])
 +        _data = fetch_data(host=_host, port=_port, args='/get_departures?country=' + varinit.settings["stations"][num]["country"] + '&operator=' + varinit.settings["stations"][num]["operator"] + "&station=" + str(varinit.settings["stations"][num]["siteid"]))
          if _data: data = json.loads(_data)
          else: 
              varinit.active_message = True
+@@ -929,6 +938,18 @@
+         kept.append(reserved_row)
+     return kept
+ 
++def _mask_rect(bmp, x0, y0, x1, y1, value=9):
++    # Ondoorzichtig zwart vlak in de overlay (palet-index 9 wordt nergens gezet en is dus zwart;
++    # alleen index 0 is transparant). Houdt een scrollende bestemming achter de lijn- en tijdkolom.
++    x0 = max(0, x0); y0 = max(0, y0); x1 = min(bmp.width, x1); y1 = min(bmp.height, y1)
++    if x1 <= x0 or y1 <= y0: return
++    try:
++        import bitmaptools
++        bitmaptools.fill_region(bmp, x0, y0, x1, y1, value)
++    except ImportError:
++        for _yy in range(y0, y1):
++            for _xx in range(x0, x1): bmp[_xx, _yy] = value
++
+ def list_mode(mini=False, half=False):
+     mini = varinit.settings["mini"]
+ 
+@@ -1078,6 +1099,13 @@
+                     if isinstance(_a, list) and len(_a) > 1:
+                         _w = strlen(_a[1][:varinit.settings["line_length"]])
+                         if _w > _norm_max_lw: _norm_max_lw = _w
++            # Renfe: vaste lijnkolom (breedte van de breedste Renfe-lijnnaam), zodat de bestemmingen
++            # niet heen en weer schuiven als er een ALV/AVE/EMD tussen de Cercanías-lijnen staat.
++            _shown = ("1", "2", "3") if int(varinit.settings.get("multiple", 0)) else ("1",)
++            if any(varinit.settings["stations"].get(_n, {}).get("operator") == "renfe" for _n in _shown):
++                for _ref in ("EMD", "REX", "PRX", "AVE", "RT2"):
++                    _w = strlen(_ref[:varinit.settings["line_length"]])
++                    if _w > _norm_max_lw: _norm_max_lw = _w
+ 
+             for x, all in enumerate(trainlist):
+ 
+@@ -1234,6 +1262,9 @@
+                             "overflow": _overflow, "pos": 0,
+                             "pause_end": _now + x * 0.8 + 2.0, "start_x": _line_col_w
+                         }
++                        _y0 = x * _row_step
++                        _mask_rect(varinit.overlay_bmp, 0, _y0, _line_col_w, _y0 + _row_step)
++                        _mask_rect(varinit.overlay_bmp, _line_col_w + _max_px + 1, _y0, varinit.overlay_bmp.width, _y0 + _row_step)
+                         renderstring(all[3], 100+x, 0, 0, inv, mini=mini,
+                                      sys_msg=min_color, target_bmp=varinit.overlay_bmp, start_x=mins_start_x)
+                         if _show_line:
 --- a/departures/createhtml.py
 +++ b/departures/createhtml.py
 @@ -87,7 +87,7 @@
@@ -49,7 +94,7 @@
                  datastr = """<option value=""" + "\"" + "0" +  "\"" + """>""" + varinit.dicts.language[varinit.settings["language"]]["display"]["select_station"] + """</option>"""
  
 -                data  = functions.fetch_data("data.t-skylt.se", 90, "/search_stop?country=" + varinit.settings["stations"][num]["country"] + "&operator=" + varinit.settings["stations"][num]["operator"] + "&station=" + request.params["sstring"])
-+                data  = functions.fetch_data(*functions.api_host(varinit.settings["stations"][num]["country"]), args="/search_stop?country=" + varinit.settings["stations"][num]["country"] + "&operator=" + varinit.settings["stations"][num]["operator"] + "&station=" + request.params["sstring"])
++                data  = functions.fetch_data(*functions.api_host(varinit.settings["stations"][num]["country"], varinit.settings["stations"][num]["operator"]), args="/search_stop?country=" + varinit.settings["stations"][num]["country"] + "&operator=" + varinit.settings["stations"][num]["operator"] + "&station=" + request.params["sstring"])
                  data = json.loads(data)                  
                  try:
                      for stations in data:
@@ -58,20 +103,22 @@
      datastr = '<option value="0">' + varinit.dicts.language[varinit.settings["language"]]["display"]["select_station"] + '</option>'
      try:
 -        data = functions.fetch_data("data.t-skylt.se", 90, "/search_stop?country=" + varinit.settings["stations"][num]["country"] + "&operator=" + varinit.settings["stations"][num]["operator"] + "&station=" + sstring)
-+        data = functions.fetch_data(*functions.api_host(varinit.settings["stations"][num]["country"]), args="/search_stop?country=" + varinit.settings["stations"][num]["country"] + "&operator=" + varinit.settings["stations"][num]["operator"] + "&station=" + sstring)
++        data = functions.fetch_data(*functions.api_host(varinit.settings["stations"][num]["country"], varinit.settings["stations"][num]["operator"]), args="/search_stop?country=" + varinit.settings["stations"][num]["country"] + "&operator=" + varinit.settings["stations"][num]["operator"] + "&station=" + sstring)
          data = json.loads(data)
          datalist = []
          for stations in data:
 --- a/departures/web.py
 +++ b/departures/web.py
-@@ -24,6 +24,7 @@
+@@ -24,7 +24,8 @@
    "pt":[["carris","Carris"]],
    "pl":[["wa","Warsaw"],["kr","Krakow"],["wa_tram","Warszawa Tram"],["plk","PLK"]],
    "at":[["wl","Vienna"]],
+-  "es":[["barcelona","Barcelona (AMB)"]],
 +  "rs":[["bg","Belgrade (GSP, timetable)"]],
-   "es":[["barcelona","Barcelona (AMB)"]],
++  "es":[["barcelona","Barcelona (AMB)"],["renfe","Renfe (Cercanías + AVE/LD, live)"]],
    "ie":[["all","All real-time operators"]],
    "de":[["local","Germany (gtfs.de)"],["db_trains","DB-trains (Deutsche Bahn)"],["be","Berlin (Unofficial API)"],["vbb","VBB/BVG (Berlin-Brandenburg)"],["vrr","VRR (Rhein-Ruhr)"],["kvv","KVV (Karlsruhe)"],["rmv","RMV (Frankfurt)"],["hochbahn","HVV (Hamburg etc.)"],["vrn","VRN (Rhein-Neckar)"],["vbn","VBN (Bremen-Niedersachsen)"],["vvo","VVO (Dresden)"]]
+ }
 --- a/departures/dicts.py
 +++ b/departures/dicts.py
 @@ -29,6 +29,7 @@
