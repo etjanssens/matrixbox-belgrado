@@ -6,7 +6,7 @@ on:
     branches: [main]
     paths: [scripts/**, .github/workflows/data.yml]
   schedule:
-    - cron: "17 3 * * 1" # elke maandag 03:17 UTC
+    - cron: "17 1 * * *" # elke nacht 01:17 UTC; Renfe heeft per dag andere ritten
 
 permissions:
   contents: read
@@ -26,6 +26,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: python3 scripts/build.py public
+      - run: python3 scripts/build_renfe.py public/renfe
       - uses: actions/upload-pages-artifact@v3
         with:
           path: public
