@@ -158,8 +158,9 @@ async function searchStops(env, query) {
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-// De MatrixBox haalt de klok uit de Date-header. Net als data.t-skylt.se sturen we lokale tijd
-// met offset (bv. "+0200"), niet "GMT" — bij "GMT" telt de firmware er vast 2 uur bij op.
+// De MatrixBox haalt zijn klok uit de Date-header. Cloudflare maakt daar altijd GMT van (en dan telt de firmware
+// er vast 2 uur bij op, fout in de wintertijd). Daarom sturen we lokale tijd mee in X-Local-Time, die de
+// aangepaste firmware voorrang geeft, in hetzelfde formaat als data.t-skylt.se ("... 14:10:27 +0200").
 function localDateHeader(now) {
   const l = belgradeNow(now);
   const dt = new Date(l.localAsUtc);
@@ -175,8 +176,7 @@ function reply(body, now) {
   return new Response(JSON.stringify(body), {
     headers: {
       "Content-Type": "application/json; charset=utf-8",
-      "Date": localDateHeader(now),
-      "X-Belgrade-Time": localDateHeader(now), // reserve, voor als Cloudflare de Date-header overschrijft
+      "X-Local-Time": localDateHeader(now),
       "Cache-Control": "no-store",
     },
   });

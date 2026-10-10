@@ -27,7 +27,7 @@ Endpoints van de Worker:
 | `/search_stop?station=slavija` | haltes zoeken (accenten maken niet uit) |
 | `/get_deviations` | altijd leeg |
 
-De `Date`-header bevat lokale tijd in Belgrado met offset (`+0200`/`+0100`). De MatrixBox zet daar zijn klok mee gelijk, net als bij data.t-skylt.se.
+De MatrixBox zet zijn klok gelijk met de `Date`-header, maar Cloudflare maakt daar altijd GMT van. Daarom stuurt de Worker lokale tijd in Belgrado mee in `X-Local-Time` (`Sat, 10 Oct 2026 14:18:42 +0200`, het formaat van data.t-skylt.se). De aangepaste `fetch_data` op de MatrixBox geeft die header voorrang.
 
 ## Lokaal draaien
 
@@ -38,4 +38,10 @@ npx wrangler dev                         # Worker lokaal; zet DATA_URL in wrangl
 
 ## Aanpassingen op de MatrixBox
 
-In `departures/functions.py` stuurt `custom_apis` het land `rs` naar deze Worker in plaats van naar data.t-skylt.se. Verder staan Servië en het vlaggetje in `web.py` en `dicts.py`. Let op: een firmware-update van T-Skylt overschrijft deze bestanden.
+In `departures/functions.py` stuurt `custom_apis` het land `rs` naar deze Worker in plaats van naar data.t-skylt.se. Verder staan Servië en het vlaggetje in `web.py` en `dicts.py`. Let op: een firmware-update van T-Skylt overschrijft deze bestanden. Opnieuw toepassen:
+
+```bash
+cd /Volumes/CIRCUITPY && patch -p1 < ~/Desktop/matrixbox-belgrado/matrixbox/departures.patch
+```
+
+(De MatrixBox heeft weinig vrije ruimte; als `patch` faalt omdat de schijf vol is, overschrijf de bestanden dan ter plekke.)
