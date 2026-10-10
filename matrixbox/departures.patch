@@ -24,6 +24,20 @@
          data = json.loads(data)
          varinit.deviations_list = data
      print(*varinit.deviations_list, sep='\n')
+@@ -347,10 +354,10 @@
+         _dest_tg_group.append(_dtg)
+     varinit.group.append(_dest_tg_group)
+     # Overlay TileGrid: line ID + minutes text drawn on top of dest TileGrids (transparent bg)
+-    varinit.overlay_palette = displayio.Palette(10)
+-    for _i in range(10): varinit.overlay_palette[_i] = varinit.palette[_i]
++    varinit.overlay_palette = displayio.Palette(16)
++    for _i in range(16): varinit.overlay_palette[_i] = varinit.palette[_i]
+     varinit.overlay_palette.make_transparent(0)
+-    varinit.overlay_bmp = displayio.Bitmap(topbottom.width, topbottom.height, 10)
++    varinit.overlay_bmp = displayio.Bitmap(topbottom.width, topbottom.height, 16)
+     varinit.overlay_tg = displayio.TileGrid(varinit.overlay_bmp, pixel_shader=varinit.overlay_palette, x=0, y=0)
+     varinit.overlay_tg.hidden = True
+     _overlay_group = displayio.Group()
 @@ -456,7 +463,8 @@
      except: print("Reading error")
      
@@ -44,10 +58,37 @@
          if _data: data = json.loads(_data)
          else: 
              varinit.active_message = True
-@@ -929,6 +938,18 @@
+@@ -756,6 +765,7 @@
+     elif sys_msg == "green": _color = (0,7)
+     elif sys_msg == "white": _color = (0,2)
+     elif sys_msg == "yellow": _color = (0,1)
++    elif isinstance(sys_msg, int) and not isinstance(sys_msg, bool): _color = (0, sys_msg)  # paletindex (lijnkleur)
+     
+     font = fonts[varinit.currentfont]
+     if smallfont == True: font = fonts[1]
+@@ -929,6 +939,37 @@
          kept.append(reserved_row)
      return kept
  
++# Lijnkleuren (Renfe): hex -> paletindex 10..15, per lijstweergave opnieuw verdeeld
++_brand_slots = {}
++def _brand_index(hexcol):
++    if hexcol in _brand_slots: return _brand_slots[hexcol]
++    if len(_brand_slots) >= 6: return None
++    try: v = int(hexcol.lstrip("#"), 16)
++    except ValueError: return None
++    r, g, b = v >> 16 & 255, v >> 8 & 255, v & 255
++    # even helder als de rest van het scherm: felste kanaal = dat van de standaardkleur
++    top = (int(varinit.settings["brightness"]) + 1) * 50
++    m = max(r, g, b, 1)
++    color = (r * top // m, g * top // m, b * top // m)
++    idx = 10 + len(_brand_slots)
++    varinit.palette[idx] = color
++    try: varinit.overlay_palette[idx] = color
++    except: pass
++    _brand_slots[hexcol] = idx
++    return idx
++
 +def _mask_rect(bmp, x0, y0, x1, y1, value=9):
 +    # Ondoorzichtig zwart vlak in de overlay (palet-index 9 wordt nergens gezet en is dus zwart;
 +    # alleen index 0 is transparant). Houdt een scrollende bestemming achter de lijn- en tijdkolom.
@@ -63,21 +104,39 @@
  def list_mode(mini=False, half=False):
      mini = varinit.settings["mini"]
  
-@@ -1078,6 +1099,13 @@
+@@ -971,6 +1012,7 @@
+         varinit.overlay_tg.hidden = True
+         varinit.overlay_bmp.fill(0)
+         varinit.dest_scroll_state = {}
++        _brand_slots.clear()  # lijnkleuren opnieuw verdelen (gedeeld palet, dus één keer per weergave)
+     except: pass
+ 
+     if varinit.shared["startup"]:
+@@ -1078,6 +1120,14 @@
                      if isinstance(_a, list) and len(_a) > 1:
                          _w = strlen(_a[1][:varinit.settings["line_length"]])
                          if _w > _norm_max_lw: _norm_max_lw = _w
 +            # Renfe: vaste lijnkolom (breedte van de breedste Renfe-lijnnaam), zodat de bestemmingen
 +            # niet heen en weer schuiven als er een ALV/AVE/EMD tussen de Cercanías-lijnen staat.
 +            _shown = ("1", "2", "3") if int(varinit.settings.get("multiple", 0)) else ("1",)
-+            if any(varinit.settings["stations"].get(_n, {}).get("operator") == "renfe" for _n in _shown):
++            _renfe_list = any(varinit.settings["stations"].get(_n, {}).get("operator") == "renfe" for _n in _shown)
++            if _renfe_list:
 +                for _ref in ("EMD", "REX", "PRX", "AVE", "RT2"):
 +                    _w = strlen(_ref[:varinit.settings["line_length"]])
 +                    if _w > _norm_max_lw: _norm_max_lw = _w
  
              for x, all in enumerate(trainlist):
  
-@@ -1234,6 +1262,9 @@
+@@ -1183,6 +1233,8 @@
+         
+                 min_color = "white" if varinit.settings.get("listcolor_time", 0) or varinit.rotated else "yellow"
+                 lin_color = "yellow" if not varinit.settings["listcolor"] else "white"
++                if _renfe_list and len(all) > 5 and all[5]:
++                    lin_color = _brand_index(all[5]) or lin_color
+                 clock_color = varinit.settings.get("clock_row_color", "white")
+                 if varinit.rotated or varinit.display.width <= 64:
+                     added_space_w = 0
+@@ -1234,6 +1286,9 @@
                              "overflow": _overflow, "pos": 0,
                              "pause_end": _now + x * 0.8 + 2.0, "start_x": _line_col_w
                          }
@@ -138,3 +197,20 @@
            "us":"USA"}
    try: return names[country]
    except: return country
+--- a/departures/varinit.py
++++ b/departures/varinit.py
+@@ -130,10 +130,10 @@
+ display.refresh()
+ try: display.root_group.hidden = True
+ except: pass
+-top = displayio.Bitmap(max(280, if_long), 16, 10)
+-bottom = displayio.Bitmap(1280, 16, 10)
+-topbottom = displayio.Bitmap(max(200, if_long, if_tall), max(if_long, if_tall), 10)
+-palette = displayio.Palette(10, dither=False)
++top = displayio.Bitmap(max(280, if_long), 16, 16)  # 16 kleuren (was 10): plek voor lijnkleuren, zelfde geheugen (4 bits)
++bottom = displayio.Bitmap(1280, 16, 16)
++topbottom = displayio.Bitmap(max(200, if_long, if_tall), max(if_long, if_tall), 16)
++palette = displayio.Palette(16, dither=False)
+ 
+ 
+ shared = {"loop_counter":-5,          
