@@ -27,6 +27,7 @@ jobs:
           python-version: "3.12"
       - run: python3 scripts/build.py public
       - run: python3 scripts/build_renfe.py public/renfe
+      - run: python3 scripts/build_italia.py public/italia
       - uses: actions/upload-pages-artifact@v3
         with:
           path: public

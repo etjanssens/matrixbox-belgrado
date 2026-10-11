@@ -9,6 +9,8 @@
 const FEEDS = {
   // Belgrado: vaste weekdienstregeling (calendar.json), geen live data
   bg: { prefix: "", tz: "Europe/Belgrade", kind: "weekly" },
+  // Trenitalia + Italo: weekdienstregeling (geen open live data)
+  treni: { prefix: "italia/", tz: "Europe/Rome", kind: "weekly" },
   // Renfe: per datum uitgerekende ritten + live vertragingen en uitvallers
   renfe: {
     prefix: "renfe/", tz: "Europe/Madrid", kind: "dated",
@@ -146,12 +148,16 @@ async function departures(env, feed, ids, now) {
   const local = localNow(feed.tz, now);
   const nowSec = local.minutes * 60;
   const found = [];
+  const seen = new Set(); // sommige bronnen bevatten dezelfde rit dubbel
   for (const dep of scheduled(feed, calendar, stops, local)) {
     if (dep.t < local.minutes - LOOKBACK_MINUTES || dep.t > local.minutes + 1440) continue;
     const rt = dep.trip && live.get(dep.trip);
     const sec = dep.t * 60 + (rt && !rt.canceled ? rt.delay : 0);
     // Uitgevallen treinen blijven zichtbaar tot hun geplande vertrektijd
     if (sec < nowSec) continue;
+    const key = sec + "|" + dep.info[0] + "|" + dep.info[2];
+    if (seen.has(key)) continue;
+    seen.add(key);
     found.push({ sec, info: dep.info, rt });
   }
 
