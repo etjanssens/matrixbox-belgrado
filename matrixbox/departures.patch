@@ -65,7 +65,7 @@
      
      font = fonts[varinit.currentfont]
      if smallfont == True: font = fonts[1]
-@@ -928,7 +938,42 @@
+@@ -928,6 +938,39 @@
      else:
          kept.append(reserved_row)
      return kept
@@ -92,23 +92,20 @@
 +    except: pass
 +    _brand_slots[hexcol] = idx
 +    return idx
- 
-+def _mask_rect(bmp, x0, y0, x1, y1, value=9):
-+    # Ondoorzichtig zwart vlak in de overlay (palet-index 9 wordt nergens gezet en is dus zwart;
-+    # alleen index 0 is transparant). Houdt een scrollende bestemming achter de lijn- en tijdkolom.
-+    x0 = max(0, x0); y0 = max(0, y0); x1 = min(bmp.width, x1); y1 = min(bmp.height, y1)
-+    if x1 <= x0 or y1 <= y0: return
-+    try:
-+        import bitmaptools
-+        bitmaptools.fill_region(bmp, x0, y0, x1, y1, value)
-+    except ImportError:
-+        for _yy in range(y0, y1):
-+            for _xx in range(x0, x1): bmp[_xx, _yy] = value
 +
++def _mask_rect(bmp, x0, y0, x1, y1, value=9):
++    # Maakt de doorzichtige pixels (0) in dit vlak van de overlay ondoorzichtig zwart (palet-index 9 wordt
++    # nergens gezet en is dus zwart). Aanroepen NA het tekenen van lijn en minuten: renderstring schrijft
++    # ook de "uit"-pixels rond elke letter als 0, en die zouden een eerder getekend vlak weer doorzichtig maken.
++    # Zo blijft een scrollende bestemming netjes achter de lijn- en tijdkolom.
++    x0 = max(0, x0); y0 = max(0, y0); x1 = min(bmp.width, x1); y1 = min(bmp.height, y1)
++    for _yy in range(y0, y1):
++        for _xx in range(x0, x1):
++            if bmp[_xx, _yy] == 0: bmp[_xx, _yy] = value
+ 
  def list_mode(mini=False, half=False):
      mini = varinit.settings["mini"]
- 
-@@ -971,6 +1016,7 @@
+@@ -971,6 +1014,7 @@
          varinit.overlay_tg.hidden = True
          varinit.overlay_bmp.fill(0)
          varinit.dest_scroll_state = {}
@@ -116,7 +113,7 @@
      except: pass
  
      if varinit.shared["startup"]:
-@@ -1078,6 +1124,15 @@
+@@ -1078,6 +1122,15 @@
                      if isinstance(_a, list) and len(_a) > 1:
                          _w = strlen(_a[1][:varinit.settings["line_length"]])
                          if _w > _norm_max_lw: _norm_max_lw = _w
@@ -132,7 +129,7 @@
  
              for x, all in enumerate(trainlist):
  
-@@ -1183,6 +1238,8 @@
+@@ -1183,6 +1236,8 @@
          
                  min_color = "white" if varinit.settings.get("listcolor_time", 0) or varinit.rotated else "yellow"
                  lin_color = "yellow" if not varinit.settings["listcolor"] else "white"
@@ -141,16 +138,16 @@
                  clock_color = varinit.settings.get("clock_row_color", "white")
                  if varinit.rotated or varinit.display.width <= 64:
                      added_space_w = 0
-@@ -1234,6 +1291,9 @@
-                             "overflow": _overflow, "pos": 0,
-                             "pause_end": _now + x * 0.8 + 2.0, "start_x": _line_col_w
-                         }
+@@ -1239,6 +1294,9 @@
+                         if _show_line:
+                             renderstring(line, 100+x, 0, 0, inv, mini=mini,
+                                          sys_msg=lin_color, target_bmp=varinit.overlay_bmp, start_x=multiple_offset)
 +                        _y0 = x * _row_step
 +                        _mask_rect(varinit.overlay_bmp, 0, _y0, _line_col_w, _y0 + _row_step)
-+                        _mask_rect(varinit.overlay_bmp, _line_col_w + _max_px + 1, _y0, varinit.overlay_bmp.width, _y0 + _row_step)
-                         renderstring(all[3], 100+x, 0, 0, inv, mini=mini,
-                                      sys_msg=min_color, target_bmp=varinit.overlay_bmp, start_x=mins_start_x)
-                         if _show_line:
++                        _mask_rect(varinit.overlay_bmp, _line_col_w + _max_px + 1, _y0, varinit.if_long, _y0 + _row_step)
+                         varinit.overlay_tg.y = extrarow
+                         varinit.overlay_tg.hidden = False
+                     else:
 --- a/departures/createhtml.py
 +++ b/departures/createhtml.py
 @@ -87,7 +87,7 @@
