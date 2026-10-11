@@ -75,14 +75,15 @@
      
      font = fonts[varinit.currentfont]
      if smallfont == True: font = fonts[1]
-@@ -929,6 +939,39 @@
+@@ -928,7 +938,40 @@
+     else:
          kept.append(reserved_row)
      return kept
- 
++
 +# Breedste lijnnamen per eigen vervoerder (voor de vaste lijnkolom); deze vervoerders krijgen ook lijnkleuren
 +_WIDE_IDS = {"renfe": ("EMD", "REX", "PRX", "AVE", "RT2"), "treni": ("ICN", "EXP", "MET", "SFM", "ITA", "BUS", "REG", "EAV", "ARS"),
 +             "oebb": ("RJX", "CJX", "REX", "ICE", "S80", "BUS", "NJ"), "hzpp": ("BUS", "HŽ")}
-+
+ 
 +# Lijnkleuren (Renfe/Trenitalia): hex -> paletindex 10..15, per lijstweergave opnieuw verdeeld
 +_brand_slots = {}
 +def _brand_index(hexcol):
@@ -148,10 +149,11 @@
                  clock_color = varinit.settings.get("clock_row_color", "white")
                  if varinit.rotated or varinit.display.width <= 64:
                      added_space_w = 0
-@@ -1227,6 +1282,13 @@
+@@ -1227,18 +1282,30 @@
                          varinit.dest_bmps[x].fill(0)
                          renderstring(dest, 100+x, 0, 0, inv, mini=mini,
                                       target_bmp=varinit.dest_bmps[x], target_offs=0)
+-                        varinit.dest_tgs[x].x = _line_col_w
 +                        # Doorlopende lichtkrant: na een gat nog een keer de naam. De scroll-lus in code.py zet
 +                        # de positie terug na `overflow` pixels; dat is dan precies één ronde, dus zonder sprong.
 +                        _period = _full_dest_w + 24
@@ -159,15 +161,23 @@
 +                            renderstring(dest, 100+x, 0, 0, inv, mini=mini, start_x=_period,
 +                                         target_bmp=varinit.dest_bmps[x], target_offs=0)
 +                            _overflow = _period
-                         varinit.dest_tgs[x].x = _line_col_w
++                        # zelfde beginpositie als de niet-scrollende rijen (die gebruiken added_space_w)
++                        _tg_x = multiple_offset + added_space_w
++                        varinit.dest_tgs[x].x = _tg_x
                          varinit.dest_tgs[x].y = extrarow + x * _row_step
                          varinit.dest_tgs[x].hidden = False
-@@ -1239,6 +1301,9 @@
+                         varinit.dest_scroll_state[x] = {
+                             "overflow": _overflow, "pos": 0,
+-                            "pause_end": _now + x * 0.8 + 2.0, "start_x": _line_col_w
++                            "pause_end": _now + x * 0.8 + 2.0, "start_x": _tg_x
+                         }
+                         renderstring(all[3], 100+x, 0, 0, inv, mini=mini,
+                                      sys_msg=min_color, target_bmp=varinit.overlay_bmp, start_x=mins_start_x)
                          if _show_line:
                              renderstring(line, 100+x, 0, 0, inv, mini=mini,
                                           sys_msg=lin_color, target_bmp=varinit.overlay_bmp, start_x=multiple_offset)
 +                        _y0 = x * _row_step
-+                        _mask_rect(varinit.overlay_bmp, 0, _y0, _line_col_w, _y0 + _row_step)
++                        _mask_rect(varinit.overlay_bmp, 0, _y0, _tg_x, _y0 + _row_step)
 +                        _mask_rect(varinit.overlay_bmp, _line_col_w + _max_px + 1, _y0, varinit.if_long, _y0 + _row_step)
                          varinit.overlay_tg.y = extrarow
                          varinit.overlay_tg.hidden = False
