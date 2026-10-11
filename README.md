@@ -29,6 +29,17 @@ Endpoints van de Worker:
 
 De MatrixBox zet zijn klok gelijk met de `Date`-header, maar Cloudflare maakt daar altijd GMT van. Daarom stuurt de Worker lokale tijd in Belgrado mee in `X-Local-Time` (`Sat, 10 Oct 2026 14:18:42 +0200`, het formaat van data.t-skylt.se). De aangepaste `fetch_data` op de MatrixBox geeft die header voorrang.
 
+## Bronnen
+
+| Vervoerder | Bron | Live |
+|---|---|---|
+| Belgrado (GSP) | [data.gov.rs](https://data.gov.rs/sr/datasets/gradski-javni-prevoz-u-beogradu-gtfs/) | nee |
+| Renfe (Cercanías + AVE/LD) | [data.renfe.com](https://data.renfe.com) (CC BY 4.0), GTFS-RT van gtfsrt.renfe.com | ja (vertraging, uitval) |
+| Trenitalia, Italo | [trenitalia-gtfs](https://github.com/deryclem/trenitalia-gtfs), [italo-gtfs](https://github.com/deryclem/italo-gtfs) (CC BY 4.0, © Clément Desouche; officiële NeTEx van het Italiaanse NAP) | nee |
+| Trenord | [dati.lombardia.it](https://www.dati.lombardia.it) | nee |
+| EAV (Circumvesuviana e.a.) | [eavsrl.it/open-data](https://www.eavsrl.it/open-data/) | nee |
+| ARST (treinlijnen Sardinië) | [arstspa.info](https://www.arstspa.info) | nee |
+
 ## Lokaal draaien
 
 ```bash
