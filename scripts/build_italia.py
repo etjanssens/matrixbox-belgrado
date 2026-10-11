@@ -45,9 +45,9 @@ def trenord_name(short):
 
 
 # Per bron: download-URL, welke route_types meedoen (None = alles), lijnnaam en kleur.
-# Italo-, Trenord- en ARST-kleuren komen uit de GTFS; de rest zijn eigen keuzes (geen officiële codes gevonden).
+# Trenord- en ARST-kleuren komen uit de GTFS; de rest zijn eigen keuzes (geen officiële codes gevonden).
 TI_COLORS = {
-    "FR": "C8102E", "FA": "A7A9AC", "FB": "E6E6E6", "IC": "1F5FA8", "ICN": "1F5FA8", "EC": "1F5FA8",
+    "FR": "E2001A", "FA": "A7A9AC", "FB": "E6E6E6", "IC": "1F5FA8", "ICN": "1F5FA8", "EC": "1F5FA8",
     "EN": "1F5FA8", "EXP": "1F5FA8", "REG": "2E9E4F", "RV": "2E9E4F", "SFM": "2E9E4F", "FL": "2E9E4F",
     "MET": "2E9E4F", "BUS": "888888",
 }
@@ -56,7 +56,7 @@ FEEDS = {
            "types": None, "name": lambda s, r: s, "color": lambda n, r: TI_COLORS.get(n, "")},
     "it": {"url": "https://raw.githubusercontent.com/deryclem/italo-gtfs/main/gtfs-italo.zip",
            "types": None, "name": lambda s, r: {"Italo": "ITA", "ItaloBus": "BUS"}.get(s, s),
-           "color": lambda n, r: "888888" if n == "BUS" else r.get("route_color", "")},
+           "color": lambda n, r: "888888" if n == "BUS" else "8E1B3C"},  # bordeaux, duidelijk anders dan FR-rood
     "trenord": {"url": "https://www.dati.lombardia.it/download/3z4k-mxz9/application%2Fzip",
                 "types": None, "name": lambda s, r: "BUS" if r["route_type"] == "3" else trenord_name(s),
                 "color": lambda n, r: "888888" if r["route_type"] == "3" else r.get("route_color", "")},
