@@ -284,12 +284,35 @@
  shared = {"loop_counter":-5,          
 --- a/departures/code.py
 +++ b/departures/code.py
-@@ -91,7 +91,7 @@
-                     if _pos >= _ov:
-                         # End of scroll: reset to start with pause
+@@ -81,17 +81,24 @@
+         # Dest TileGrid smooth scroll (runs every main-loop iteration in listmode)
+         if _skin == "list" and int(varinit.settings.get("dest_scroll", 0)):
+             try:
++                # Eén scrollende naam tegelijk: de rest wacht. Na elke ronde DEST_SCROLL_PAUSE seconden rust;
++                # daarna is de naam aan de beurt die het langst stilstaat (pause_end = laatste keer gescrold).
+                 _nt = time.monotonic()
+                 _scrolled = False
+-                for _rx, _rs in varinit.dest_scroll_state.items():
+-                    _ov = _rs["overflow"]
+-                    if _ov <= 0: continue
+-                    if _nt < _rs.get("pause_end", 0): continue
++                _rows = [(_rx, _rs) for _rx, _rs in varinit.dest_scroll_state.items() if _rs["overflow"] > 0]
++                _cur = [(_rx, _rs) for _rx, _rs in _rows if _rs["pos"] > 0]
++                if not _cur and _nt >= varinit.shared.get("dest_next", 0):
++                    _due = [(_rs.get("pause_end", 0), _rx, _rs) for _rx, _rs in _rows if _nt >= _rs.get("pause_end", 0)]
++                    if _due:
++                        _due.sort(key=lambda d: (d[0], d[1]))
++                        _cur = [(_due[0][1], _due[0][2])]
++                for _rx, _rs in _cur[:1]:
+                     _pos = _rs["pos"]
+-                    if _pos >= _ov:
+-                        # End of scroll: reset to start with pause
++                    if _pos >= _rs["overflow"]:
++                        # één ronde gedaan (naam + gat + naam): terug naar het begin, achteraan in de rij
                          _rs["pos"] = 0
 -                        _rs["pause_end"] = _nt + 1.5
-+                        _rs["pause_end"] = _nt + DEST_SCROLL_PAUSE  # één ronde gedaan (naam + gat + naam): even stilstaan
++                        _rs["pause_end"] = _nt
++                        varinit.shared["dest_next"] = _nt + DEST_SCROLL_PAUSE
                          varinit.dest_tgs[_rx].x = _rs["start_x"]
                      else:
                          _rs["pos"] = _pos + 1
