@@ -222,3 +222,16 @@
  
  
  shared = {"loop_counter":-5,          
+--- a/lib/ampule.py
++++ b/lib/ampule.py
+@@ -183,6 +183,10 @@
+         #print("OS Error with socket:", e)
+         raise e
+ 
++    # Nooit eeuwig wachten op een browser die een verbinding opent maar niets stuurt (preconnect):
++    # zonder timeout blijft de webinterface (en het scherm) hangen tot de browser die verbinding sluit.
++    try: client.settimeout(3)
++    except: pass
+     try:
+         request = __read_request(client)
+         if request is None:
