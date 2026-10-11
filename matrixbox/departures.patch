@@ -7,7 +7,7 @@
 +
 +# Landen/vervoerders die niet via data.t-skylt.se gaan maar via een eigen server: "land" of "land/vervoerder" -> (host, poort)
 +_own = ("matrixbox-belgrado.emieljanssens.workers.dev", 80)
-+custom_apis = {"rs": _own, "es/renfe": _own, "it/treni": _own}
++custom_apis = {"rs": _own, "es/renfe": _own, "it/treni": _own, "at/oebb": _own, "cr/hzpp": _own}
 +def api_host(country, operator=""):
 +    return custom_apis.get(country + "/" + operator) or custom_apis.get(country) or ("data.t-skylt.se", 90)
  
@@ -65,12 +65,14 @@
      
      font = fonts[varinit.currentfont]
      if smallfont == True: font = fonts[1]
-@@ -929,6 +939,40 @@
+@@ -928,7 +938,42 @@
+     else:
          kept.append(reserved_row)
      return kept
- 
++
 +# Breedste lijnnamen per eigen vervoerder (voor de vaste lijnkolom); deze vervoerders krijgen ook lijnkleuren
-+_WIDE_IDS = {"renfe": ("EMD", "REX", "PRX", "AVE", "RT2"), "treni": ("ICN", "EXP", "MET", "SFM", "ITA", "BUS", "REG", "EAV", "ARS")}
++_WIDE_IDS = {"renfe": ("EMD", "REX", "PRX", "AVE", "RT2"), "treni": ("ICN", "EXP", "MET", "SFM", "ITA", "BUS", "REG", "EAV", "ARS"),
++             "oebb": ("RJX", "CJX", "REX", "ICE", "S80", "BUS", "NJ"), "hzpp": ("BUS", "HŽ")}
 +
 +# Lijnkleuren (Renfe/Trenitalia): hex -> paletindex 10..15, per lijstweergave opnieuw verdeeld
 +_brand_slots = {}
@@ -90,7 +92,7 @@
 +    except: pass
 +    _brand_slots[hexcol] = idx
 +    return idx
-+
+ 
 +def _mask_rect(bmp, x0, y0, x1, y1, value=9):
 +    # Ondoorzichtig zwart vlak in de overlay (palet-index 9 wordt nergens gezet en is dus zwart;
 +    # alleen index 0 is transparant). Houdt een scrollende bestemming achter de lijn- en tijdkolom.
@@ -106,7 +108,7 @@
  def list_mode(mini=False, half=False):
      mini = varinit.settings["mini"]
  
-@@ -971,6 +1015,7 @@
+@@ -971,6 +1016,7 @@
          varinit.overlay_tg.hidden = True
          varinit.overlay_bmp.fill(0)
          varinit.dest_scroll_state = {}
@@ -114,7 +116,7 @@
      except: pass
  
      if varinit.shared["startup"]:
-@@ -1078,6 +1123,15 @@
+@@ -1078,6 +1124,15 @@
                      if isinstance(_a, list) and len(_a) > 1:
                          _w = strlen(_a[1][:varinit.settings["line_length"]])
                          if _w > _norm_max_lw: _norm_max_lw = _w
@@ -130,7 +132,7 @@
  
              for x, all in enumerate(trainlist):
  
-@@ -1183,6 +1237,8 @@
+@@ -1183,6 +1238,8 @@
          
                  min_color = "white" if varinit.settings.get("listcolor_time", 0) or varinit.rotated else "yellow"
                  lin_color = "yellow" if not varinit.settings["listcolor"] else "white"
@@ -139,7 +141,7 @@
                  clock_color = varinit.settings.get("clock_row_color", "white")
                  if varinit.rotated or varinit.display.width <= 64:
                      added_space_w = 0
-@@ -1234,6 +1290,9 @@
+@@ -1234,6 +1291,9 @@
                              "overflow": _overflow, "pos": 0,
                              "pause_end": _now + x * 0.8 + 2.0, "start_x": _line_col_w
                          }
@@ -171,6 +173,15 @@
          for stations in data:
 --- a/departures/web.py
 +++ b/departures/web.py
+@@ -9,7 +9,7 @@
+   "lu":[["all","All of Luxembourg"]],
+   "no":[["no","Entur (entire Norway)"]],
+   "fi":[["all","All of Finland"], ["hsl","HSL"]],
+-  "cr":[["za","ZET (Zagreb)"]],
++  "cr":[["za","ZET (Zagreb)"],["hzpp","HŽPP (timetable)"]],
+   "bg":[["so","Sofia"]],
+   "nl":[["all","Countrywide"], ["ns","Nederlandse Spoorwegen"]],
+   "ch":[["ch","Switzerland"],["sbb","SBB"]],
 @@ -20,11 +20,12 @@
    "hu":[["bu","Budapest"]],
    "us":[["nyc_subway","NYC Subway"],["nyc_lirr","Long Island Rail Road"],["nyc_mnr","Metro-North Railroad"],["nyc_bus_bx","MTA Bus - Bronx"],["nyc_bus_b","MTA Bus - Brooklyn"],["nyc_bus_m","MTA Bus - Manhattan"],["nyc_bus_q","MTA Bus - Queens"],["nyc_bus_si","MTA Bus - Staten Island"],["nyc_bus_co","MTA Bus Company"]],
@@ -179,8 +190,9 @@
 +  "it":[["ro","Rome"],["treni","Trenitalia + Italo (timetable)"]],
    "pt":[["carris","Carris"]],
    "pl":[["wa","Warsaw"],["kr","Krakow"],["wa_tram","Warszawa Tram"],["plk","PLK"]],
-   "at":[["wl","Vienna"]],
+-  "at":[["wl","Vienna"]],
 -  "es":[["barcelona","Barcelona (AMB)"]],
++  "at":[["wl","Vienna"],["oebb","ÖBB (timetable)"]],
 +  "rs":[["bg","Belgrade (GSP, timetable)"]],
 +  "es":[["barcelona","Barcelona (AMB)"],["renfe","Renfe (Cercanías + AVE/LD, live)"]],
    "ie":[["all","All real-time operators"]],
