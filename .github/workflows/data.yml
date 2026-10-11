@@ -28,6 +28,8 @@ jobs:
       - run: python3 scripts/build.py public
       - run: python3 scripts/build_renfe.py public/renfe
       - run: python3 scripts/build_italia.py public/italia
+      - run: python3 scripts/build_dated.py oebb public/oebb
+      - run: python3 scripts/build_dated.py hzpp public/hzpp
       - uses: actions/upload-pages-artifact@v3
         with:
           path: public

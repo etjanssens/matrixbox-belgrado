@@ -9,6 +9,9 @@
 const FEEDS = {
   // Belgrado: vaste weekdienstregeling (calendar.json), geen live data
   bg: { prefix: "", tz: "Europe/Belgrade", kind: "weekly" },
+  // ÖBB en HŽPP: per datum uitgerekende ritten (geen open live data)
+  oebb: { prefix: "oebb/", tz: "Europe/Vienna", kind: "dated" },
+  hzpp: { prefix: "hzpp/", tz: "Europe/Zagreb", kind: "dated" },
   // Trenitalia + Italo: weekdienstregeling (geen open live data)
   treni: { prefix: "italia/", tz: "Europe/Rome", kind: "weekly" },
   // Renfe: per datum uitgerekende ritten + live vertragingen en uitvallers
@@ -186,7 +189,8 @@ function plain(s) {
 }
 
 async function searchStops(env, feed, query) {
-  const q = plain(query.trim());
+  // "Hbf" -> "Hauptbahnhof" (ÖBB schrijft het voluit)
+  const q = plain(query.trim()).replace(/\bhbf\b/g, "hauptbahnhof");
   if (q.length < 2) return {};
   const stops = await getJson(env, feed, "stops.json");
   const hits = stops.filter(([id, code, name]) => plain(name).includes(q) || code === q);

@@ -39,6 +39,8 @@ De MatrixBox zet zijn klok gelijk met de `Date`-header, maar Cloudflare maakt da
 | Trenord | [dati.lombardia.it](https://www.dati.lombardia.it) | nee |
 | EAV (Circumvesuviana e.a.) | [eavsrl.it/open-data](https://www.eavsrl.it/open-data/) | nee |
 | ARST (treinlijnen Sardinië) | [arstspa.info](https://www.arstspa.info) | nee |
+| ÖBB (incl. Montafonerbahn, CAT) | [data.oebb.at](https://data.oebb.at/de/datensaetze~soll-fahrplan-gtfs~) (CC BY 4.0) | nee |
+| HŽPP (Kroatië) | [hzpp.hr](https://www.hzpp.hr/GTFS_files.zip) | nee |
 
 ## Lokaal draaien
 
