@@ -1,18 +1,19 @@
 --- a/departures/functions.py
 +++ b/departures/functions.py
-@@ -7,6 +7,12 @@
- id = "".join(mac)
+@@ -8,7 +8,13 @@
  #ap_name = "t-skylt" + id[-2:]; varinit.ap_name = ap_name
  ap_name = "matrixbox-" + "".join(mac).replace("0x","")[:3] # mac-id för hotspot
-+
+ 
 +# Landen/vervoerders die niet via data.t-skylt.se gaan maar via een eigen server: "land" of "land/vervoerder" -> (host, poort)
 +_own = ("matrixbox-belgrado.emieljanssens.workers.dev", 80)
 +custom_apis = {"rs": _own, "es/renfe": _own, "it/treni": _own, "at/oebb": _own, "cr/hzpp": _own}
 +def api_host(country, operator=""):
 +    return custom_apis.get(country + "/" + operator) or custom_apis.get(country) or ("data.t-skylt.se", 90)
  
- 
++
  def pwd_gen(): return id.replace("0x","")[:8]
+ def cls(__screen, _refresh=False):
+     __screen.fill(0)
 @@ -213,7 +219,8 @@
      operator = varinit.settings["stations"]["1"]["operator"]
      siteid = varinit.settings["stations"]["1"]["siteid"]
@@ -23,6 +24,15 @@
          data = json.loads(data)
          varinit.deviations_list = data
      print(*varinit.deviations_list, sep='\n')
+@@ -333,7 +340,7 @@
+     varinit.text = load_text()
+     # Destination text smooth-scroll TileGrids (one bitmap per row, transparent background)
+     _max_rows = max(8, varinit.if_tall // 6)
+-    _dest_bmp_w = max(400, varinit.if_long * 3)
++    _dest_bmp_w = max(640, varinit.if_long * 5)  # ruimte voor naam + gat + naam (doorlopende lichtkrant)
+     _dest_palette = displayio.Palette(2)
+     _dest_palette[0] = 0x000000
+     _dest_palette.make_transparent(0)
 @@ -347,10 +354,10 @@
          _dest_tg_group.append(_dtg)
      varinit.group.append(_dest_tg_group)
@@ -65,11 +75,10 @@
      
      font = fonts[varinit.currentfont]
      if smallfont == True: font = fonts[1]
-@@ -928,6 +938,39 @@
-     else:
+@@ -929,6 +939,39 @@
          kept.append(reserved_row)
      return kept
-+
+ 
 +# Breedste lijnnamen per eigen vervoerder (voor de vaste lijnkolom); deze vervoerders krijgen ook lijnkleuren
 +_WIDE_IDS = {"renfe": ("EMD", "REX", "PRX", "AVE", "RT2"), "treni": ("ICN", "EXP", "MET", "SFM", "ITA", "BUS", "REG", "EAV", "ARS"),
 +             "oebb": ("RJX", "CJX", "REX", "ICE", "S80", "BUS", "NJ"), "hzpp": ("BUS", "HŽ")}
@@ -102,9 +111,10 @@
 +    for _yy in range(y0, y1):
 +        for _xx in range(x0, x1):
 +            if bmp[_xx, _yy] == 0: bmp[_xx, _yy] = value
- 
++
  def list_mode(mini=False, half=False):
      mini = varinit.settings["mini"]
+ 
 @@ -971,6 +1014,7 @@
          varinit.overlay_tg.hidden = True
          varinit.overlay_bmp.fill(0)
@@ -138,7 +148,21 @@
                  clock_color = varinit.settings.get("clock_row_color", "white")
                  if varinit.rotated or varinit.display.width <= 64:
                      added_space_w = 0
-@@ -1239,6 +1294,9 @@
+@@ -1227,6 +1282,13 @@
+                         varinit.dest_bmps[x].fill(0)
+                         renderstring(dest, 100+x, 0, 0, inv, mini=mini,
+                                      target_bmp=varinit.dest_bmps[x], target_offs=0)
++                        # Doorlopende lichtkrant: na een gat nog een keer de naam. De scroll-lus in code.py zet
++                        # de positie terug na `overflow` pixels; dat is dan precies één ronde, dus zonder sprong.
++                        _period = _full_dest_w + 24
++                        if _period + _full_dest_w <= varinit.dest_bmps[x].width:
++                            renderstring(dest, 100+x, 0, 0, inv, mini=mini, start_x=_period,
++                                         target_bmp=varinit.dest_bmps[x], target_offs=0)
++                            _overflow = _period
+                         varinit.dest_tgs[x].x = _line_col_w
+                         varinit.dest_tgs[x].y = extrarow + x * _row_step
+                         varinit.dest_tgs[x].hidden = False
+@@ -1239,6 +1301,9 @@
                          if _show_line:
                              renderstring(line, 100+x, 0, 0, inv, mini=mini,
                                           sys_msg=lin_color, target_bmp=varinit.overlay_bmp, start_x=multiple_offset)
