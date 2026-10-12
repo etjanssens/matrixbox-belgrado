@@ -25,6 +25,8 @@ const FEEDS = {
   lpp: { prefix: "lpp/", tz: "Europe/Ljubljana", kind: "dated", live: "lpp" },
   // Slovenië (NAP, alleen met account): staat niet op de openbare Pages maar privé in R2, in bundels
   sz: { prefix: "sz/", tz: "Europe/Ljubljana", kind: "dated", r2: true, shards: 128 },
+  // Oostenrijk compleet (Mobilitätsverbünde, account + eigen licentie): ook privé in R2
+  atrail: { prefix: "atrail/", tz: "Europe/Vienna", kind: "dated", r2: true, shards: 128 },
   // Trenitalia + Italo: weekdienstregeling (geen open live data)
   treni: { prefix: "italia/", tz: "Europe/Rome", kind: "weekly" },
   // Renfe: per datum uitgerekende ritten + live vertragingen en uitvallers

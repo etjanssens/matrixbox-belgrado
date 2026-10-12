@@ -39,7 +39,7 @@ DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sun
 OEBB_COLORS = {
     "RJ": "E2002A", "RJX": "E2002A", "NJ": "1E2A5A", "EN": "1E2A5A", "EC": "1F5FA8", "IC": "1F5FA8",
     "ICE": "1F5FA8", "D": "1F5FA8", "REX": "2E9E4F", "CJX": "2E9E4F", "R": "2E9E4F",
-    "S": "0089CF", "CAT": "7AB800", "BUS": "888888",
+    "S": "0089CF", "CAT": "7AB800", "BUS": "888888", "WB": "3E9A35",
 }
 
 
@@ -150,6 +150,9 @@ def greek_to_latin(text):
 FEEDS = {
     "oebb": {"url": "https://static.web.oebb.at/open-data/soll-fahrplan-gtfs/GTFS_Fahrplan_{year}.zip",
              "tz": "Europe/Vienna", "line": oebb_line, "color": oebb_color},
+    # Oostenrijk compleet: alle treinen (ÖBB, WESTbahn, Raaberbahn/GYSEV, Montafonerbahn, buitenlandse treinen)
+    # van data.mobilitaetsverbuende.at (account; eigen licentie) -> privé in R2. Zelfde opbouw als de ÖBB-data.
+    "atrail": {"url": None, "tz": "Europe/Vienna", "line": oebb_line, "color": oebb_color},
     # Slovenië: de landelijke GTFS van het NAP (nap.si, alleen met account). De Action downloadt hem
     # wekelijks met een token (NAP_USER/NAP_PASSWORD) en geeft hem via --zip mee.
     "sz": {"url": None, "tz": "Europe/Ljubljana",

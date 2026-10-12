@@ -47,6 +47,7 @@ De MatrixBox zet zijn klok gelijk met de `Date`-header, maar Cloudflare maakt da
 | Letland: Vivi, Rīgas Satiksme, ATD | [data.gov.lv](https://data.gov.lv) (CC0) | nee |
 | Hellenic Train (Griekenland) | [Transitous-GTFS](https://jbb.ghsq.de/gtfs/) (community, uit railway.gov.gr; geen licentie vermeld) | nee |
 | Tallinn stadsvervoer | transport.tallinn.ee (open; live vertrektijden) | ja |
+| Oostenrijk compleet (ÖBB, WESTbahn, GYSEV, …) | [data.mobilitaetsverbuende.at](https://data.mobilitaetsverbuende.at) (account; eigen licentie → privé in R2; geheimen MVO_USER/MVO_PASSWORD) | nee |
 | ÖBB (incl. Montafonerbahn, CAT) | [data.oebb.at](https://data.oebb.at/de/datensaetze~soll-fahrplan-gtfs~) (CC BY 4.0) | nee |
 | HŽPP (Kroatië) | [hzpp.hr](https://www.hzpp.hr/GTFS_files.zip) | nee |
 | SŽ + bussen (Nomago, Arriva, AP Murska Sobota, LPP) | landelijke GTFS van het [Sloveense NAP](https://www.nap.si) (account nodig; geheimen NAP_USER/NAP_PASSWORD) | nee (SIRI bevat alleen busposities, geen vertragingen) |
