@@ -75,13 +75,15 @@
      
      font = fonts[varinit.currentfont]
      if smallfont == True: font = fonts[1]
-@@ -929,6 +939,42 @@
+@@ -928,7 +938,44 @@
+     else:
          kept.append(reserved_row)
      return kept
- 
++
 +# Breedste lijnnamen per eigen vervoerder (voor de vaste lijnkolom); deze vervoerders krijgen ook lijnkleuren
 +_WIDE_IDS = {"renfe": ("EMD", "REX", "PRX", "AVE", "RT2"), "treni": ("ICN", "EXP", "MET", "SFM", "ITA", "BUS", "REG", "EAV", "ARS"),
-+             "oebb": ("RJX", "CJX", "REX", "ICE", "S80", "BUS", "NJ"), "hzpp": ("BUS", "HŽ"), "sz": ("SŽ", "NOM", "ARR", "APM", "LPP", "BUS")}
++             "oebb": ("RJX", "CJX", "REX", "ICE", "S80", "BUS", "NJ"), "hzpp": ("BUS", "HŽ"), "sz": ("SŽ", "NOM", "ARR", "APM", "LPP", "BUS"),
++             "lpp": ("N3B", "19I", "18L", "11B", "20Z", "SŽ")}
 +
 +# Lijnkleuren (Renfe/Trenitalia): hex -> paletindex 10..15, per lijstweergave opnieuw verdeeld
 +_brand_slots = {}
@@ -104,7 +106,7 @@
 +
 +# Lange bestemmingen staan stil en lopen elke DEST_SCROLL_PAUSE seconden één keer helemaal rond
 +DEST_SCROLL_PAUSE = 6
-+
+ 
 +def _mask_rect(bmp, x0, y0, x1, y1, value=9):
 +    # Maakt de doorzichtige pixels (0) in dit vlak van de overlay ondoorzichtig zwart (palet-index 9 wordt
 +    # nergens gezet en is dus zwart). Aanroepen NA het tekenen van lijn en minuten: renderstring schrijft
@@ -118,7 +120,7 @@
  def list_mode(mini=False, half=False):
      mini = varinit.settings["mini"]
  
-@@ -964,6 +1010,7 @@
+@@ -964,6 +1011,7 @@
  
      _dest_scroll = int(varinit.settings.get("dest_scroll", 0))
      _now = time.monotonic()
@@ -126,7 +128,7 @@
      cls(topbottom)
      # Hide dest TileGrids and overlay; will be shown per-row if dest_scroll active
      try:
-@@ -971,6 +1018,7 @@
+@@ -971,6 +1019,7 @@
          varinit.overlay_tg.hidden = True
          varinit.overlay_bmp.fill(0)
          varinit.dest_scroll_state = {}
@@ -134,7 +136,7 @@
      except: pass
  
      if varinit.shared["startup"]:
-@@ -1078,6 +1126,15 @@
+@@ -1078,6 +1127,15 @@
                      if isinstance(_a, list) and len(_a) > 1:
                          _w = strlen(_a[1][:varinit.settings["line_length"]])
                          if _w > _norm_max_lw: _norm_max_lw = _w
@@ -150,7 +152,7 @@
  
              for x, all in enumerate(trainlist):
  
-@@ -1183,6 +1240,8 @@
+@@ -1183,6 +1241,8 @@
          
                  min_color = "white" if varinit.settings.get("listcolor_time", 0) or varinit.rotated else "yellow"
                  lin_color = "yellow" if not varinit.settings["listcolor"] else "white"
@@ -159,7 +161,7 @@
                  clock_color = varinit.settings.get("clock_row_color", "white")
                  if varinit.rotated or varinit.display.width <= 64:
                      added_space_w = 0
-@@ -1227,18 +1286,36 @@
+@@ -1227,18 +1287,36 @@
                          varinit.dest_bmps[x].fill(0)
                          renderstring(dest, 100+x, 0, 0, inv, mini=mini,
                                       target_bmp=varinit.dest_bmps[x], target_offs=0)
@@ -242,7 +244,7 @@
 -  "es":[["barcelona","Barcelona (AMB)"]],
 +  "at":[["wl","Vienna"],["oebb","ÖBB (timetable)"]],
 +  "rs":[["bg","Belgrade (GSP, timetable)"]],
-+  "si":[["sz","SŽ + buses (timetable)"]],
++  "si":[["sz","SŽ + buses (timetable)"],["lpp","LPP Ljubljana city buses (live)"]],
 +  "es":[["barcelona","Barcelona (AMB)"],["renfe","Renfe (Cercanías + AVE/LD, live)"]],
    "ie":[["all","All real-time operators"]],
    "de":[["local","Germany (gtfs.de)"],["db_trains","DB-trains (Deutsche Bahn)"],["be","Berlin (Unofficial API)"],["vbb","VBB/BVG (Berlin-Brandenburg)"],["vrr","VRR (Rhein-Ruhr)"],["kvv","KVV (Karlsruhe)"],["rmv","RMV (Frankfurt)"],["hochbahn","HVV (Hamburg etc.)"],["vrn","VRN (Rhein-Neckar)"],["vbn","VBN (Bremen-Niedersachsen)"],["vvo","VVO (Dresden)"]]
