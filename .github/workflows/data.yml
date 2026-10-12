@@ -99,7 +99,7 @@ jobs:
           npm install -g wrangler@4 >/dev/null 2>&1
           cd private
           for f in sz/stops.json sz/shards/*.json; do
-            wrangler r2 object put "matrixbox-private/$f" --file "$f" --content-type application/json --remote >/dev/null
+            for i in 1 2 3; do wrangler r2 object put "matrixbox-private/$f" --file "$f" --content-type application/json --remote >/dev/null && break; sleep 5; done
           done
           echo "geüpload naar R2: $(ls sz/shards | wc -l) bundels + stops.json"
       # Oostenrijk compleet (data.mobilitaetsverbuende.at, account): elke nacht, ~225 MB maar snel
@@ -115,7 +115,7 @@ jobs:
             command -v wrangler >/dev/null || npm install -g wrangler@4 >/dev/null 2>&1
             cd private
             for f in atrail/stops.json atrail/shards/*.json; do
-              wrangler r2 object put "matrixbox-private/$f" --file "$f" --content-type application/json --remote >/dev/null
+              for i in 1 2 3; do wrangler r2 object put "matrixbox-private/$f" --file "$f" --content-type application/json --remote >/dev/null && break; sleep 5; done
             done
             echo "geüpload naar R2: Oostenrijk compleet"
           else
