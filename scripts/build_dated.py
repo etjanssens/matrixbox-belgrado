@@ -97,13 +97,32 @@ def cz_color(line, route):
     return next((c for key, c in CZ_AGENCY_COLORS if key.lower() in name), "")
 
 
-def download(url, timeout=900):
-    # via curl: robuuster met certificaatketens dan urllib (data.gov.lv stuurt geen complete keten mee)
+def _fetch(url, timeout):
+    # via curl: robuuster met certificaatketens dan urllib (data.gov.lv stuurt geen complete keten mee).
+    # -4: sommige servers (ATD) antwoorden vanaf GitHub niet via IPv6.
     if url.startswith("ftp://"):
         with urllib.request.urlopen(url, timeout=timeout) as r:
             return r.read()
-    return subprocess.run(["curl", "-fsSL", "--retry", "3", "--max-time", str(timeout), url],
+    return subprocess.run(["curl", "-4", "-fsSL", "--retry", "3", "--connect-timeout", "30", "--max-time", str(timeout), url],
                           check=True, capture_output=True).stdout
+
+
+def download(url, timeout=600):
+    """Download met reservekopie: bij succes bewaard in $DOWNLOAD_CACHE, bij een mislukte download de vorige versie."""
+    cache_dir = os.environ.get("DOWNLOAD_CACHE")
+    cached = os.path.join(cache_dir, "%08x.bin" % zlib.crc32(url.encode())) if cache_dir else None
+    try:
+        data = _fetch(url, timeout)
+    except Exception as e:
+        if cached and os.path.exists(cached):
+            print("DOWNLOAD MISLUKT (%s), vorige versie gebruikt: %s" % (e.__class__.__name__, url))
+            return open(cached, "rb").read()
+        raise
+    if cached:
+        os.makedirs(cache_dir, exist_ok=True)
+        with open(cached, "wb") as f:
+            f.write(data)
+    return data
 
 
 def latest_ckan_resource(api):

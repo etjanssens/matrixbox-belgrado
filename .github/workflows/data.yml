@@ -20,25 +20,46 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      DOWNLOAD_CACHE: dl-cache
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      # Downloads bewaren: als een bron een nacht niet antwoordt, bouwen we met de vorige versie
+      - uses: actions/cache@v4
+        with:
+          path: dl-cache
+          key: dl-cache-${{ github.run_id }}
+          restore-keys: dl-cache-
       - run: python3 scripts/build.py public
-      - run: python3 scripts/build_renfe.py public/renfe
-      - run: python3 scripts/build_italia.py public/italia
-      - run: python3 scripts/build_dated.py oebb public/oebb
-      - run: python3 scripts/build_dated.py hzpp public/hzpp
-      - run: python3 scripts/build_dated.py lpp public/lpp
-      - run: python3 scripts/build_dated.py cp public/cp
-      - run: python3 scripts/build_dated.py euskotren public/euskotren
-      - run: python3 scripts/build_dated.py ee public/ee
-      - run: python3 scripts/build_dated.py cz public/cz
-      - run: python3 scripts/build_dated.py vivi public/vivi
-      - run: python3 scripts/build_dated.py rs public/rs
-      - run: python3 scripts/build_dated.py atd public/atd
-      - run: python3 scripts/build_dated.py gr public/gr
+      - continue-on-error: true
+        run: python3 scripts/build_renfe.py public/renfe
+      - continue-on-error: true
+        run: python3 scripts/build_italia.py public/italia
+      - continue-on-error: true
+        run: python3 scripts/build_dated.py oebb public/oebb
+      - continue-on-error: true
+        run: python3 scripts/build_dated.py hzpp public/hzpp
+      - continue-on-error: true
+        run: python3 scripts/build_dated.py lpp public/lpp
+      - continue-on-error: true
+        run: python3 scripts/build_dated.py cp public/cp
+      - continue-on-error: true
+        run: python3 scripts/build_dated.py euskotren public/euskotren
+      - continue-on-error: true
+        run: python3 scripts/build_dated.py ee public/ee
+      - continue-on-error: true
+        run: python3 scripts/build_dated.py cz public/cz
+      - continue-on-error: true
+        run: python3 scripts/build_dated.py vivi public/vivi
+      - continue-on-error: true
+        run: python3 scripts/build_dated.py rs public/rs
+      - continue-on-error: true
+        run: python3 scripts/build_dated.py atd public/atd
+      - continue-on-error: true
+        run: python3 scripts/build_dated.py gr public/gr
       # Slovenië (NAP, met account) gaat NIET naar Pages maar naar privé-opslag (R2): zie job 'slovenia'.
       - uses: actions/upload-pages-artifact@v3
         with:
