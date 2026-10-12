@@ -38,7 +38,12 @@ export default {
         return reply(await departures(env, feed, ids, now), feed, now);
       }
       if (url.pathname === "/search_stop") {
-        return reply(await searchStops(env, feed, url.searchParams.get("station") || ""), feed, now);
+        // De MatrixBox toont elke sleutel als station: bij een fout dus een lege lijst, geen foutobject
+        try {
+          return reply(await searchStops(env, feed, url.searchParams.get("station") || ""), feed, now);
+        } catch (e) {
+          return reply({}, feed, now);
+        }
       }
       if (url.pathname === "/get_deviations") {
         return reply([], feed, now);
@@ -194,6 +199,7 @@ async function searchStops(env, feed, query) {
   const q = plain(query.trim()).replace(/\bhbf\b/g, "hauptbahnhof");
   if (q.length < 2) return {};
   const stops = await getJson(env, feed, "stops.json");
+  if (!stops) return {};
   const hits = stops.filter(([id, code, name]) => plain(name).includes(q) || code === q);
 
   const out = {};
