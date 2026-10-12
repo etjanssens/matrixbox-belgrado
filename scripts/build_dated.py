@@ -25,6 +25,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import urllib.request
 import zipfile
 import zlib
@@ -76,6 +77,56 @@ def nice(name):
     return re.sub(r"[^\W\d_]{2,}", lambda m: m.group(0).capitalize(), name)
 
 
+def cz_line(trip, route):
+    short = route.get("route_short_name", "")
+    if re.fullmatch(r"[SRLTU]\d{1,2}", short):  # echte lijn (S1, R44, L2…)
+        return short
+    if route["route_type"] == "714" or "(NAD)" in short:
+        return "NAD"  # vervangende bus
+    return (trip.get("trip_short_name") or short).split(" ")[0][:3]
+
+
+CZ_AGENCY_COLORS = [("České dráhy", "1F5FA8"), ("RegioJet", "F5C400"), ("Leo Express", "F28C28"),
+                    ("ARRIVA", "00B2A9"), ("GW Train", "2E9E4F"), ("Länderbahn", "D7262E")]
+
+
+def cz_color(line, route):
+    if line == "NAD":
+        return "888888"
+    name = route.get("_agency_name", "").lower()
+    return next((c for key, c in CZ_AGENCY_COLORS if key.lower() in name), "")
+
+
+def download(url, timeout=900):
+    # via curl: robuuster met certificaatketens dan urllib (data.gov.lv stuurt geen complete keten mee)
+    if url.startswith("ftp://"):
+        with urllib.request.urlopen(url, timeout=timeout) as r:
+            return r.read()
+    return subprocess.run(["curl", "-fsSL", "--retry", "3", "--max-time", str(timeout), url],
+                          check=True, capture_output=True).stdout
+
+
+def latest_ckan_resource(api):
+    resources = json.loads(download(api, 60))["result"]["resources"]
+    zips = [x for x in resources if (x.get("url") or "").lower().endswith(".zip")]
+    return max(zips, key=lambda x: x.get("created") or x.get("last_modified") or "")["url"]
+
+
+AGENCY_PALETTE = ["2E9E4F", "1F5FA8", "F28C28", "00B2A9", "A35CA0", "D7262E", "F5C400", "6CB33F"]
+
+
+def agency_color(name):
+    """Vaste kleur per bedrijf voor bronnen zonder eigen kleuren."""
+    return AGENCY_PALETTE[zlib.crc32(name.encode()) % len(AGENCY_PALETTE)] if name else ""
+
+
+def short_agency(name):
+    """Drie letters voor een busbedrijf: initialen bij meerdere woorden ("Liepājas AP" -> "LAP"), anders het begin."""
+    words = [w for w in re.split(r"[\s\-\"']+", name) if w and w.upper() not in ("AS", "SIA", "AP")]
+    if not words: return "BUS"
+    return (words[0][:3] if len(words) == 1 else "".join(w[0] for w in words[:3])).upper()
+
+
 FEEDS = {
     "oebb": {"url": "https://static.web.oebb.at/open-data/soll-fahrplan-gtfs/GTFS_Fahrplan_{year}.zip",
              "tz": "Europe/Vienna", "line": oebb_line, "color": oebb_color},
@@ -89,6 +140,34 @@ FEEDS = {
             "line": lambda t, r: r.get("route_short_name", "").lstrip("0") or "BUS",
             "color": None,  # route_color uit de GTFS
             "dest": lambda t: nice(t.get("trip_short_name", ""))},
+    # Estland: landelijke open GTFS (Regionaal- ja Põllumajandusministeerium; Elron, bussen, Tallinn, veerboten).
+    # Lijnkleuren uit de data (Elron oranje, Tallinn-trams groen, …).
+    "ee": {"url": "https://eu-gtfs.remix.com/estonia_unified_gtfs.zip", "tz": "Europe/Tallinn",
+           "line": lambda t, r: r.get("route_short_name") or "BUS", "color": None},
+    # Tsjechië: alle treinen (ČD, RegioJet, Leo Express, Arriva, …) uit de officiële CIS JŘ-dienstregeling,
+    # omgezet door het Oběhy-project met JrUtil (CC0). Treintype uit trip_short_name ("Os 10020"); lijnen als S1 blijven.
+    "cz": {"url": "https://motis.obehy.cz/get-feeds/cz-czptt-gtfs.zip", "tz": "Europe/Prague",
+           "line": lambda t, r: cz_line(t, r), "color": lambda line: "", "color_by_agency": cz_color},
+    # Letland (CC0, data.gov.lv): drie aparte bronnen met elk eigen halte-ID's.
+    # Vivi-treinen: trip_headsign herhaalt de route ("Rīga - Ludza"), dus bestemming = eindhalte.
+    "vivi": {"url": "https://vivi.lv/uploads/GTFS.zip", "tz": "Europe/Riga",
+             "line": lambda t, r: "BUS" if r["route_type"] == "3" else "VV", "color": lambda line: "00A0DF",
+             "dest": lambda t: ""},
+    # Rīgas Satiksme: maandelijks een nieuw bestand met een andere naam; het nieuwste via de CKAN-API
+    "rs": {"url": lambda: latest_ckan_resource("https://data.gov.lv/dati/api/3/action/package_show?id=marsrutu-saraksti-rigas-satiksme-sabiedriskajam-transportam"),
+           "tz": "Europe/Riga", "line": lambda t, r: r.get("route_short_name") or "RS", "color": None},
+    # ATD: streek- en intercitybussen; routenummers zijn 4 cijfers, dus we tonen het bedrijf
+    "atd": {"url": "https://www.atd.lv/sites/default/files/GTFS/gtfs-latvia-lv.zip", "tz": "Europe/Riga",
+            "line": lambda t, r: "VV" if r["route_type"] == "2" else short_agency(r.get("_agency_name", "")),
+            "color": lambda line: "", "color_by_agency": lambda line, r: agency_color(r.get("_agency_name", ""))},
+    # Baskenland: Euskotren (treinen E1-E4, metro L3, trams Bilbao/Vitoria), Moveuskadi, CC BY 4.0. Officiële lijnkleuren.
+    "euskotren": {"url": "ftp://ftp.geo.euskadi.net/cartografia/Transporte/Moveuskadi/Euskotren/google_transit.zip",
+                  "tz": "Europe/Madrid", "line": lambda t, r: r.get("route_short_name") or "ET", "color": None},
+    # Portugal: CP - Comboios de Portugal (publico.cp.pt, elke nacht opnieuw). Licentie niet vermeld.
+    # Categorie = route_short_name (AP/IC/IR/R); voorstadstreinen (route_type 109) heten "U".
+    "cp": {"url": "https://publico.cp.pt/gtfs/gtfs.zip", "tz": "Europe/Lisbon",
+           "line": lambda t, r: "U" if r["route_type"] == "109" else (r.get("route_short_name") or "CP")[:3],
+           "color": lambda line: {"AP": "7A1F5C", "IC": "1F5FA8", "IR": "2E9E4F", "R": "F2B700", "U": "0089CF"}.get(line, "")},
     "hzpp": {"url": "https://www.hzpp.hr/GTFS_files.zip", "tz": "Europe/Zagreb",
              # Geen treintypes in de data: alles heet "HŽ" (bussen "BUS"), in HŽ-blauw
              "line": lambda t, r: "BUS" if r["route_type"] == "3" else "HŽ",
@@ -106,7 +185,8 @@ class Gtfs:
         if name not in self.names:
             return
         with self.zf.open(self.names[name]) as f:
-            for row in csv.DictReader(io.TextIOWrapper(f, encoding="utf-8-sig")):
+            # skipinitialspace: sommige bronnen (ATD Letland) scheiden velden met ", "
+            for row in csv.DictReader(io.TextIOWrapper(f, encoding="utf-8-sig"), skipinitialspace=True):
                 yield {k.strip(): (v or "").strip() for k, v in row.items() if k}
 
 
@@ -151,7 +231,10 @@ def build(kind, gtfs, out):
             if "routes" in cfg and not cfg["routes"](r):
                 continue
             line = cfg["line"](t, r)
-            color = cfg["color"](line) if cfg["color"] else r.get("route_color", "")
+            if "color_by_agency" in cfg:
+                color = cfg["color_by_agency"](line, r)
+            else:
+                color = cfg["color"](line) if cfg["color"] else r.get("route_color", "")
             headsign = cfg["dest"](t) if "dest" in cfg else t.get("trip_headsign", "")
             trips[t["trip_id"]] = (line, "BUS" if r["route_type"] == "3" else "TRAIN", color, headsign, active[t["service_id"]])
             line_colors[line] = color
@@ -214,11 +297,14 @@ def main():
         raw = open(args.zip, "rb").read()
     elif FEEDS[args.kind]["url"] is None:
         parser.error(args.kind + " heeft geen open download-URL: geef het zipbestand mee met --zip")
+    elif callable(FEEDS[args.kind]["url"]):
+        url = FEEDS[args.kind]["url"]()
+        print("download", url)
+        raw = download(url)
     else:
         url = FEEDS[args.kind]["url"].format(year=datetime.date.today().year + (1 if datetime.date.today() >= datetime.date(datetime.date.today().year, 12, 13) else 0))
         print("download", url)
-        with urllib.request.urlopen(url, timeout=900) as r:
-            raw = r.read()
+        raw = download(url)
     if os.path.isdir(args.out):
         shutil.rmtree(args.out)
     os.makedirs(args.out)

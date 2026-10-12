@@ -12,6 +12,13 @@ const FEEDS = {
   // ÖBB en HŽPP: per datum uitgerekende ritten (geen open live data)
   oebb: { prefix: "oebb/", tz: "Europe/Vienna", kind: "dated" },
   hzpp: { prefix: "hzpp/", tz: "Europe/Zagreb", kind: "dated" },
+  cp: { prefix: "cp/", tz: "Europe/Lisbon", kind: "dated" },
+  euskotren: { prefix: "euskotren/", tz: "Europe/Madrid", kind: "dated" },
+  ee: { prefix: "ee/", tz: "Europe/Tallinn", kind: "dated" },
+  cz: { prefix: "cz/", tz: "Europe/Prague", kind: "dated" },
+  vivi: { prefix: "vivi/", tz: "Europe/Riga", kind: "dated" },
+  rs: { prefix: "rs/", tz: "Europe/Riga", kind: "dated" },
+  atd: { prefix: "atd/", tz: "Europe/Riga", kind: "dated" },
   // Stadsbussen Ljubljana: live van de open LPP-API, met de dienstregeling als reserve
   lpp: { prefix: "lpp/", tz: "Europe/Ljubljana", kind: "dated", live: "lpp" },
   // Slovenië (NAP, alleen met account): staat niet op de openbare Pages maar privé in R2, in bundels

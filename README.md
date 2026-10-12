@@ -40,6 +40,11 @@ De MatrixBox zet zijn klok gelijk met de `Date`-header, maar Cloudflare maakt da
 | EAV (Circumvesuviana e.a.) | [eavsrl.it/open-data](https://www.eavsrl.it/open-data/) | nee |
 | ARST (treinlijnen Sardinië) | [arstspa.info](https://www.arstspa.info) | nee |
 | LPP (stadsbussen Ljubljana) | [data.lpp.si](https://data.lpp.si) (open data; GTFS + live-API) | ja (live aankomsten) |
+| CP (Portugal) | [publico.cp.pt](https://publico.cp.pt/gtfs/gtfs.zip) (licentie niet vermeld) | nee |
+| Euskotren (Baskenland) | Moveuskadi, ftp.geo.euskadi.net (CC BY 4.0) | nee |
+| Estland (Elron, bussen, Tallinn) | [landelijke GTFS](https://eu-gtfs.remix.com/estonia_unified_gtfs.zip) (Regionaal- ja Põllumajandusministeerium) | nee |
+| Tsjechië (alle treinen) | [Oběhy/JrUtil](https://motis.obehy.cz/get-feeds/) omzetting van CIS JŘ (CC0) | nee |
+| Letland: Vivi, Rīgas Satiksme, ATD | [data.gov.lv](https://data.gov.lv) (CC0) | nee |
 | ÖBB (incl. Montafonerbahn, CAT) | [data.oebb.at](https://data.oebb.at/de/datensaetze~soll-fahrplan-gtfs~) (CC BY 4.0) | nee |
 | HŽPP (Kroatië) | [hzpp.hr](https://www.hzpp.hr/GTFS_files.zip) | nee |
 | SŽ + bussen (Nomago, Arriva, AP Murska Sobota, LPP) | landelijke GTFS van het [Sloveense NAP](https://www.nap.si) (account nodig; geheimen NAP_USER/NAP_PASSWORD) | nee (SIRI bevat alleen busposities, geen vertragingen) |

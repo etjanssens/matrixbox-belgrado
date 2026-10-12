@@ -31,6 +31,13 @@ jobs:
       - run: python3 scripts/build_dated.py oebb public/oebb
       - run: python3 scripts/build_dated.py hzpp public/hzpp
       - run: python3 scripts/build_dated.py lpp public/lpp
+      - run: python3 scripts/build_dated.py cp public/cp
+      - run: python3 scripts/build_dated.py euskotren public/euskotren
+      - run: python3 scripts/build_dated.py ee public/ee
+      - run: python3 scripts/build_dated.py cz public/cz
+      - run: python3 scripts/build_dated.py vivi public/vivi
+      - run: python3 scripts/build_dated.py rs public/rs
+      - run: python3 scripts/build_dated.py atd public/atd
       # Slovenië (NAP, met account) gaat NIET naar Pages maar naar privé-opslag (R2): zie job 'slovenia'.
       - uses: actions/upload-pages-artifact@v3
         with:
