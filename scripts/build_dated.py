@@ -6,7 +6,8 @@ draait dit elke nacht. Geen live data (die is voor deze landen niet open beschik
 Bronnen:
   oebb  ÖBB Open Data, Soll-Fahrplan GTFS (data.oebb.at), CC BY 4.0
   hzpp  HŽ Putnički prijevoz, GTFS (hzpp.hr)
-  sz    Slovenske železnice, uit de landelijke GTFS van het Sloveense NAP (nap.si, met account)
+  sz    Slovenië (SŽ-treinen + bussen van Nomago, Arriva, AP Murska Sobota, LPP), uit de landelijke
+        GTFS van het Sloveense NAP (nap.si, met account)
 
 Uitvoer per bron (public/<bron>):
   stops.json          [[station_id, code, naam, richting-hint], ...]
@@ -54,14 +55,27 @@ def oebb_color(line):
     return OEBB_COLORS.get("S" if re.fullmatch(r"S\d+", line) else line, "")
 
 
+# Slovenië: treinen van SŽ plus de streek- en intercitybussen. De lijnnamen in deze data zijn interne
+# codes ("PR A15 0522 1"), dus we tonen het bedrijf. Kleuren zijn eigen keuzes in de stijl van de merken.
+SZ_AGENCIES = [("SŽ", "SŽ"), ("Nomago", "NOM"), ("Arriva", "ARR"), ("Murska Sobota", "APM"), ("Ljubljanski potniški", "LPP")]
+SZ_COLORS = {"SŽ": "0062A6", "NOM": "6CB33F", "ARR": "00B2A9", "APM": "F28C28", "LPP": "F4D000"}
+
+
+def sz_line(route):
+    name = route.get("_agency_name", "")
+    for key, short in SZ_AGENCIES:
+        if key.lower() in name.lower():
+            return short
+    return "BUS" if route["route_type"] == "3" else name[:3].upper()
+
+
 FEEDS = {
     "oebb": {"url": "https://static.web.oebb.at/open-data/soll-fahrplan-gtfs/GTFS_Fahrplan_{year}.zip",
              "tz": "Europe/Vienna", "line": oebb_line, "color": oebb_color},
     # Slovenië: de landelijke GTFS van het NAP (nap.si, alleen met account). De Action downloadt hem
-    # wekelijks met een token (NAP_USER/NAP_PASSWORD) en geeft hem via --zip mee. Alleen de treinen van SŽ.
+    # wekelijks met een token (NAP_USER/NAP_PASSWORD) en geeft hem via --zip mee.
     "sz": {"url": None, "tz": "Europe/Ljubljana",
-           "routes": lambda r: r["route_type"] == "2" and r.get("agency_id") == "1161",
-           "line": lambda t, r: "SŽ", "color": lambda line: "0062A6"},
+           "line": lambda t, r: sz_line(r), "color": lambda line: SZ_COLORS.get(line, "")},
     "hzpp": {"url": "https://www.hzpp.hr/GTFS_files.zip", "tz": "Europe/Zagreb",
              # Geen treintypes in de data: alles heet "HŽ" (bussen "BUS"), in HŽ-blauw
              "line": lambda t, r: "BUS" if r["route_type"] == "3" else "HŽ",
@@ -111,7 +125,11 @@ def build(kind, gtfs, out):
             parent[s["stop_id"]] = s["parent_station"]
     station = lambda sid: parent.get(sid, sid)
 
-    routes = {r["route_id"]: r for r in gtfs.rows("routes.txt")}
+    agencies = {a.get("agency_id", ""): a.get("agency_name", "") for a in gtfs.rows("agency.txt")}
+    routes = {}
+    for r in gtfs.rows("routes.txt"):
+        r["_agency_name"] = agencies.get(r.get("agency_id", ""), "")
+        routes[r["route_id"]] = r
     trips = {}
     for t in gtfs.rows("trips.txt"):
         if active.get(t["service_id"]) and t["route_id"] in routes:

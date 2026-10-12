@@ -41,7 +41,7 @@ De MatrixBox zet zijn klok gelijk met de `Date`-header, maar Cloudflare maakt da
 | ARST (treinlijnen Sardinië) | [arstspa.info](https://www.arstspa.info) | nee |
 | ÖBB (incl. Montafonerbahn, CAT) | [data.oebb.at](https://data.oebb.at/de/datensaetze~soll-fahrplan-gtfs~) (CC BY 4.0) | nee |
 | HŽPP (Kroatië) | [hzpp.hr](https://www.hzpp.hr/GTFS_files.zip) | nee |
-| SŽ (Slovenië) | landelijke GTFS van het [Sloveense NAP](https://www.nap.si) (account nodig; geheimen NAP_USER/NAP_PASSWORD) | nee (SIRI nog te onderzoeken) |
+| SŽ + bussen (Nomago, Arriva, AP Murska Sobota, LPP) | landelijke GTFS van het [Sloveense NAP](https://www.nap.si) (account nodig; geheimen NAP_USER/NAP_PASSWORD) | nee (SIRI bevat alleen busposities, geen vertragingen) |
 
 ## Lokaal draaien
 
