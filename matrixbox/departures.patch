@@ -81,7 +81,7 @@
  
 +# Breedste lijnnamen per eigen vervoerder (voor de vaste lijnkolom); deze vervoerders krijgen ook lijnkleuren
 +_WIDE_IDS = {"renfe": ("EMD", "REX", "PRX", "AVE", "RT2"), "treni": ("ICN", "EXP", "MET", "SFM", "ITA", "BUS", "REG", "EAV", "ARS"),
-+             "oebb": ("RJX", "CJX", "REX", "ICE", "S80", "BUS", "NJ"), "hzpp": ("BUS", "HŽ"), "sz": ("SŽ", "BUS")}
++             "oebb": ("RJX", "CJX", "REX", "ICE", "S80", "BUS", "NJ"), "hzpp": ("BUS", "HŽ"), "sz": ("SŽ", "NOM", "ARR", "APM", "LPP", "BUS")}
 +
 +# Lijnkleuren (Renfe/Trenitalia): hex -> paletindex 10..15, per lijstweergave opnieuw verdeeld
 +_brand_slots = {}
@@ -242,7 +242,7 @@
 -  "es":[["barcelona","Barcelona (AMB)"]],
 +  "at":[["wl","Vienna"],["oebb","ÖBB (timetable)"]],
 +  "rs":[["bg","Belgrade (GSP, timetable)"]],
-+  "si":[["sz","SŽ (timetable)"]],
++  "si":[["sz","SŽ + buses (timetable)"]],
 +  "es":[["barcelona","Barcelona (AMB)"],["renfe","Renfe (Cercanías + AVE/LD, live)"]],
    "ie":[["all","All real-time operators"]],
    "de":[["local","Germany (gtfs.de)"],["db_trains","DB-trains (Deutsche Bahn)"],["be","Berlin (Unofficial API)"],["vbb","VBB/BVG (Berlin-Brandenburg)"],["vrr","VRR (Rhein-Ruhr)"],["kvv","KVV (Karlsruhe)"],["rmv","RMV (Frankfurt)"],["hochbahn","HVV (Hamburg etc.)"],["vrn","VRN (Rhein-Neckar)"],["vbn","VBN (Bremen-Niedersachsen)"],["vvo","VVO (Dresden)"]]
