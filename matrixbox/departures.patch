@@ -1,9 +1,10 @@
 --- a/departures/functions.py
 +++ b/departures/functions.py
-@@ -8,7 +8,14 @@
+@@ -7,6 +7,13 @@
+ id = "".join(mac)
  #ap_name = "t-skylt" + id[-2:]; varinit.ap_name = ap_name
  ap_name = "matrixbox-" + "".join(mac).replace("0x","")[:3] # mac-id för hotspot
- 
++
 +# Landen/vervoerders die niet via data.t-skylt.se gaan maar via een eigen server: "land" of "land/vervoerder" -> (host, poort)
 +_own = ("matrixbox-belgrado.emieljanssens.workers.dev", 80)
 +custom_apis = {"rs": _own, "es/renfe": _own, "it/treni": _own, "at/oebb": _own, "at/atrail": _own, "cr/hzpp": _own, "si": _own,
@@ -11,10 +12,8 @@
 +def api_host(country, operator=""):
 +    return custom_apis.get(country + "/" + operator) or custom_apis.get(country) or ("data.t-skylt.se", 90)
  
-+
+ 
  def pwd_gen(): return id.replace("0x","")[:8]
- def cls(__screen, _refresh=False):
-     __screen.fill(0)
 @@ -213,7 +220,8 @@
      operator = varinit.settings["stations"]["1"]["operator"]
      siteid = varinit.settings["stations"]["1"]["siteid"]
@@ -76,7 +75,7 @@
      
      font = fonts[varinit.currentfont]
      if smallfont == True: font = fonts[1]
-@@ -928,7 +939,47 @@
+@@ -928,7 +939,59 @@
      else:
          kept.append(reserved_row)
      return kept
@@ -88,6 +87,18 @@
 +             "cp": ("AP", "IC", "IR", "U"), "euskotren": ("E3a", "TG1", "FCC", "L3"), "cz": ("NAD", "R17", "S49", "rj", "LE", "Os"),
 +             "ee": ("RE", "35A", "BUS", "T1"), "vivi": ("VV",), "rs": ("13", "30"), "atd": ("CAT", "LAP", "BUS"), "gr": ("IC", "BUS", "P", "R"),
 +             "atrail": ("RJX", "CJX", "REX", "ICE", "S80", "BUS", "NJ", "WB")}
++
++# Vaste lijnkleuren voor vervoerders via T-Skylt die zelf geen kleur meesturen (officiële MTA-kleuren)
++_NYC = {"1": "EE352E", "2": "EE352E", "3": "EE352E", "4": "00933C", "5": "00933C", "6": "00933C", "7": "B933AD",
++        "A": "0039A6", "C": "0039A6", "E": "0039A6", "B": "FF6319", "D": "FF6319", "F": "FF6319", "M": "FF6319",
++        "G": "6CBE45", "J": "996633", "Z": "996633", "L": "A7A9AC", "N": "FCCC0A", "Q": "FCCC0A", "R": "FCCC0A",
++        "W": "FCCC0A", "S": "808183", "GS": "808183", "FS": "808183", "H": "808183", "SI": "0039A6", "SIR": "0039A6"}
++_LINE_COLORS = {"nyc_subway": _NYC}
++
++def _line_color(line_map, line):
++    # "6X"/"7X" (express) hebben de kleur van 6/7
++    line = str(line).strip().upper()
++    return line_map.get(line) or (line_map.get(line[:-1]) if line.endswith("X") else None)
 +
 +# Lijnkleuren (Renfe/Trenitalia): hex -> paletindex 10..15, per lijstweergave opnieuw verdeeld
 +_brand_slots = {}
@@ -124,7 +135,7 @@
  def list_mode(mini=False, half=False):
      mini = varinit.settings["mini"]
  
-@@ -964,6 +1015,7 @@
+@@ -964,6 +1027,7 @@
  
      _dest_scroll = int(varinit.settings.get("dest_scroll", 0))
      _now = time.monotonic()
@@ -132,7 +143,7 @@
      cls(topbottom)
      # Hide dest TileGrids and overlay; will be shown per-row if dest_scroll active
      try:
-@@ -971,6 +1023,7 @@
+@@ -971,6 +1035,7 @@
          varinit.overlay_tg.hidden = True
          varinit.overlay_bmp.fill(0)
          varinit.dest_scroll_state = {}
@@ -140,7 +151,7 @@
      except: pass
  
      if varinit.shared["startup"]:
-@@ -1078,6 +1131,15 @@
+@@ -1078,6 +1143,17 @@
                      if isinstance(_a, list) and len(_a) > 1:
                          _w = strlen(_a[1][:varinit.settings["line_length"]])
                          if _w > _norm_max_lw: _norm_max_lw = _w
@@ -149,6 +160,8 @@
 +            _shown = ("1", "2", "3") if int(varinit.settings.get("multiple", 0)) else ("1",)
 +            _ops = [varinit.settings["stations"].get(_n, {}).get("operator") for _n in _shown]
 +            _own_list = any(_o in _WIDE_IDS for _o in _ops)
++            _line_map = {}
++            for _o in _ops: _line_map.update(_LINE_COLORS.get(_o, {}))
 +            for _o in _ops:
 +                for _ref in _WIDE_IDS.get(_o, ()):
 +                    _w = strlen(_ref[:varinit.settings["line_length"]])
@@ -156,16 +169,18 @@
  
              for x, all in enumerate(trainlist):
  
-@@ -1183,6 +1245,8 @@
+@@ -1183,6 +1259,10 @@
          
                  min_color = "white" if varinit.settings.get("listcolor_time", 0) or varinit.rotated else "yellow"
                  lin_color = "yellow" if not varinit.settings["listcolor"] else "white"
 +                if _own_list and len(all) > 5 and all[5]:
 +                    lin_color = _brand_index(all[5]) or lin_color
++                elif _line_map and len(all) > 1 and _line_color(_line_map, all[1]):
++                    lin_color = _brand_index(_line_color(_line_map, all[1])) or lin_color
                  clock_color = varinit.settings.get("clock_row_color", "white")
                  if varinit.rotated or varinit.display.width <= 64:
                      added_space_w = 0
-@@ -1227,18 +1291,36 @@
+@@ -1227,18 +1307,36 @@
                          varinit.dest_bmps[x].fill(0)
                          renderstring(dest, 100+x, 0, 0, inv, mini=mini,
                                       target_bmp=varinit.dest_bmps[x], target_offs=0)
