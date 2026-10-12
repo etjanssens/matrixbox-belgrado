@@ -46,6 +46,10 @@ export default {
     const url = new URL(request.url);
     const now = new Date();
     const feed = FEEDS[url.searchParams.get("operator")] || FEEDS.bg;
+    // Doorgeefluik voor één open bron die GitHub weigert (ATD Letland, CC0). Vaste URL: geen open proxy.
+    if (url.pathname === "/mirror/atd-gtfs.zip") {
+      return fetch("https://www.atd.lv/sites/default/files/GTFS/gtfs-latvia-lv.zip", { cf: { cacheTtl: 3600 } });
+    }
     try {
       if (url.pathname === "/get_departures") {
         const ids = (url.searchParams.get("station") || "").split("-").filter((id) => /^\d+$/.test(id));

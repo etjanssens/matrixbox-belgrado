@@ -202,7 +202,8 @@ FEEDS = {
     "rs": {"url": lambda: latest_ckan_resource("https://data.gov.lv/dati/api/3/action/package_show?id=marsrutu-saraksti-rigas-satiksme-sabiedriskajam-transportam"),
            "tz": "Europe/Riga", "line": lambda t, r: r.get("route_short_name") or "RS", "color": None},
     # ATD: streek- en intercitybussen; routenummers zijn 4 cijfers, dus we tonen het bedrijf
-    "atd": {"url": "https://www.atd.lv/sites/default/files/GTFS/gtfs-latvia-lv.zip", "tz": "Europe/Riga",
+    # atd.lv weigert GitHub; de Worker geeft dit ene (CC0-)bestand door vanuit Europa
+    "atd": {"url": "https://matrixbox-belgrado.emieljanssens.workers.dev/mirror/atd-gtfs.zip", "tz": "Europe/Riga",
             "line": lambda t, r: "VV" if r["route_type"] == "2" else short_agency(r.get("_agency_name", "")),
             "color": lambda line: "", "color_by_agency": lambda line, r: agency_color(r.get("_agency_name", ""))},
     # Griekenland: Hellenic Train, community-GTFS van Transitous (gebouwd uit railway.gov.gr; geen licentie vermeld).
