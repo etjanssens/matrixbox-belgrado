@@ -69,6 +69,13 @@ def sz_line(route):
     return "BUS" if route["route_type"] == "3" else name[:3].upper()
 
 
+def nice(name):
+    """Namen in hoofdletters ("NOVE STOŽICE P+R") worden "Nove Stožice P+R"."""
+    if name != name.upper():
+        return name
+    return re.sub(r"[^\W\d_]{2,}", lambda m: m.group(0).capitalize(), name)
+
+
 FEEDS = {
     "oebb": {"url": "https://static.web.oebb.at/open-data/soll-fahrplan-gtfs/GTFS_Fahrplan_{year}.zip",
              "tz": "Europe/Vienna", "line": oebb_line, "color": oebb_color},
@@ -76,6 +83,12 @@ FEEDS = {
     # wekelijks met een token (NAP_USER/NAP_PASSWORD) en geeft hem via --zip mee.
     "sz": {"url": None, "tz": "Europe/Ljubljana",
            "line": lambda t, r: sz_line(r), "color": lambda line: SZ_COLORS.get(line, "")},
+    # Stadsbussen Ljubljana (LPP, open data). Station-ID = stop_code, dezelfde code als de live-API van LPP
+    # (data.lpp.si/api/station/arrival), die de Worker eerst probeert; dit is de reserve als die niet antwoordt.
+    "lpp": {"url": "https://data.lpp.si/api/gtfs/feed.zip", "tz": "Europe/Ljubljana", "use_stop_code": True,
+            "line": lambda t, r: r.get("route_short_name", "").lstrip("0") or "BUS",
+            "color": None,  # route_color uit de GTFS
+            "dest": lambda t: nice(t.get("trip_short_name", ""))},
     "hzpp": {"url": "https://www.hzpp.hr/GTFS_files.zip", "tz": "Europe/Zagreb",
              # Geen treintypes in de data: alles heet "HŽ" (bussen "BUS"), in HŽ-blauw
              "line": lambda t, r: "BUS" if r["route_type"] == "3" else "HŽ",
@@ -118,9 +131,10 @@ def build(kind, gtfs, out):
             (active[cd["service_id"]].add if cd["exception_type"] == "1" else active[cd["service_id"]].discard)(cd["date"])
 
     # stations: perrons volgen hun station (parent_station)
-    names, parent = {}, {}
+    names, parent, codes = {}, {}, {}
     for s in gtfs.rows("stops.txt"):
         names[s["stop_id"]] = s["stop_name"]
+        codes[s["stop_id"]] = s.get("stop_code", "")
         if s.get("parent_station"):
             parent[s["stop_id"]] = s["parent_station"]
     station = lambda sid: parent.get(sid, sid)
@@ -130,15 +144,17 @@ def build(kind, gtfs, out):
     for r in gtfs.rows("routes.txt"):
         r["_agency_name"] = agencies.get(r.get("agency_id", ""), "")
         routes[r["route_id"]] = r
-    trips = {}
+    trips, line_colors = {}, {}
     for t in gtfs.rows("trips.txt"):
         if active.get(t["service_id"]) and t["route_id"] in routes:
             r = routes[t["route_id"]]
             if "routes" in cfg and not cfg["routes"](r):
                 continue
             line = cfg["line"](t, r)
-            trips[t["trip_id"]] = (line, "BUS" if r["route_type"] == "3" else "TRAIN", cfg["color"](line),
-                                   t.get("trip_headsign", ""), active[t["service_id"]])
+            color = cfg["color"](line) if cfg["color"] else r.get("route_color", "")
+            headsign = cfg["dest"](t) if "dest" in cfg else t.get("trip_headsign", "")
+            trips[t["trip_id"]] = (line, "BUS" if r["route_type"] == "3" else "TRAIN", color, headsign, active[t["service_id"]])
+            line_colors[line] = color
 
     stop_times = defaultdict(list)
     for st in gtfs.rows("stop_times.txt"):
@@ -174,6 +190,8 @@ def build(kind, gtfs, out):
                 dests[info[2]] += 1
             data[d] = rows
         num = sid if sid.isdigit() else str(zlib.crc32(sid.encode()))  # vast per station, alleen cijfers (Worker)
+        if cfg.get("use_stop_code") and codes.get(sid, "").isdigit():
+            num = codes[sid]
         with open(os.path.join(dep_dir, num + ".json"), "w", encoding="utf-8") as f:
             json.dump({"l": lines, "d": data}, f, ensure_ascii=False, separators=(",", ":"))
         stops_out.append([num, num, names.get(sid, sid), ", ".join(h for h, _ in dests.most_common(2))])
@@ -181,6 +199,8 @@ def build(kind, gtfs, out):
     stops_out.sort(key=lambda s: s[2])
     with open(os.path.join(out, "stops.json"), "w", encoding="utf-8") as f:
         json.dump(stops_out, f, ensure_ascii=False, separators=(",", ":"))
+    with open(os.path.join(out, "lines.json"), "w", encoding="utf-8") as f:  # lijn -> kleur (voor live data)
+        json.dump(line_colors, f, ensure_ascii=False, separators=(",", ":"))
     print(f"{len(stops_out)} stations geschreven naar {out}")
 
 

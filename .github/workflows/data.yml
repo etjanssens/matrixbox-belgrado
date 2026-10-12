@@ -30,6 +30,7 @@ jobs:
       - run: python3 scripts/build_italia.py public/italia
       - run: python3 scripts/build_dated.py oebb public/oebb
       - run: python3 scripts/build_dated.py hzpp public/hzpp
+      - run: python3 scripts/build_dated.py lpp public/lpp
       # Slovenië (NAP, met account) gaat NIET naar Pages maar naar privé-opslag (R2): zie job 'slovenia'.
       - uses: actions/upload-pages-artifact@v3
         with:

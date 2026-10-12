@@ -12,6 +12,8 @@ const FEEDS = {
   // ÖBB en HŽPP: per datum uitgerekende ritten (geen open live data)
   oebb: { prefix: "oebb/", tz: "Europe/Vienna", kind: "dated" },
   hzpp: { prefix: "hzpp/", tz: "Europe/Zagreb", kind: "dated" },
+  // Stadsbussen Ljubljana: live van de open LPP-API, met de dienstregeling als reserve
+  lpp: { prefix: "lpp/", tz: "Europe/Ljubljana", kind: "dated", live: "lpp" },
   // Slovenië (NAP, alleen met account): staat niet op de openbare Pages maar privé in R2, in bundels
   sz: { prefix: "sz/", tz: "Europe/Ljubljana", kind: "dated", r2: true, shards: 128 },
   // Trenitalia + Italo: weekdienstregeling (geen open live data)
@@ -160,6 +162,10 @@ function* scheduled(feed, calendar, stops, local) {
 
 async function departures(env, feed, ids, now) {
   if (!ids.length) return { departures: [], msg: "No station" };
+  if (feed.live === "lpp") {
+    const live = await lppLive(env, feed, ids, now);
+    if (live) return live;
+  }
   const [calendar, live, ...stops] = await Promise.all([
     feed.kind === "weekly" ? getJson(env, feed, "calendar.json") : null,
     realtime(feed),
@@ -197,6 +203,48 @@ async function departures(env, feed, ids, now) {
       deviations: rt ? "#" : [],
     })),
   };
+}
+
+// LPP (Ljubljana): live aankomsten per halte van data.lpp.si. type 0 = live gevolgd, 2 = komt nu aan,
+// 1 = volgens dienstregeling. Geeft null als de API niets bruikbaars teruggeeft (dan de dienstregeling).
+function niceName(s) {
+  if (s !== s.toUpperCase()) return s;
+  // "N. STOŽICE P+R" -> "N. Stožice P+R": woorden met een hoofdletter, afkortingen van 1-2 letters (SŽ, P+R) blijven
+  return s.replace(/\p{L}+/gu, (w) => (w.length <= 2 ? w : w[0] + w.slice(1).toLowerCase()));
+}
+
+async function lppLive(env, feed, ids, now) {
+  try {
+    const [colors, ...answers] = await Promise.all([
+      getJson(env, feed, "lines.json").catch(() => null),
+      ...ids.slice(0, 3).map((id) =>
+        fetch("https://data.lpp.si/api/station/arrival?station-code=" + id, { cf: { cacheTtl: 15, cacheEverything: true } })
+          .then((r) => (r.ok ? r.json() : null)).catch(() => null)),
+    ]);
+    const arrivals = answers.flatMap((a) => (a && a.data && a.data.arrivals) || []);
+    if (!answers.some((a) => a && a.data)) return null;
+    const local = localNow(feed.tz, now);
+    const seen = new Set();
+    const out = [];
+    for (const a of arrivals.sort((x, y) => x.eta_min - y.eta_min)) {
+      const dest = niceName((a.stations && a.stations.arrival) || a.trip_name || "");
+      const key = a.route_name + "|" + dest + "|" + a.eta_min;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({
+        destination: dest,
+        direction_code: 0,
+        expected: new Date(local.localAsUtc + a.eta_min * 60000).toISOString().slice(0, 19),
+        line: { id: a.route_name, transport_mode: "BUS" },
+        color: (colors && colors[a.route_name]) || "",
+        deviations: a.type === 1 ? [] : "#",
+      });
+      if (out.length >= MAX_DEPARTURES) break;
+    }
+    return { departures: out };
+  } catch (e) {
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------- haltes zoeken
