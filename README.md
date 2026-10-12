@@ -43,6 +43,13 @@ De MatrixBox zet zijn klok gelijk met de `Date`-header, maar Cloudflare maakt da
 | HŽPP (Kroatië) | [hzpp.hr](https://www.hzpp.hr/GTFS_files.zip) | nee |
 | SŽ + bussen (Nomago, Arriva, AP Murska Sobota, LPP) | landelijke GTFS van het [Sloveense NAP](https://www.nap.si) (account nodig; geheimen NAP_USER/NAP_PASSWORD) | nee (SIRI bevat alleen busposities, geen vertragingen) |
 
+## Privé-data (Slovenië)
+
+De NAP-data van Slovenië is alleen met een account beschikbaar en mag niet openbaar. De job `slovenia` in de
+Action zet hem daarom niet op Pages maar in de privé-R2-opslag `matrixbox-private`, gebundeld in 128 bestanden
+(`scripts/shard.py`); alleen de Worker kan erbij (binding `PRIVATE`). Geheimen: `NAP_USER`, `NAP_PASSWORD`,
+`CLOUDFLARE_API_TOKEN` (R2 Edit). De NAP-download (~90 MB, traag) gebeurt één keer per week.
+
 ## Lokaal draaien
 
 ```bash

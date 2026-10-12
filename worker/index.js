@@ -12,7 +12,8 @@ const FEEDS = {
   // ÖBB en HŽPP: per datum uitgerekende ritten (geen open live data)
   oebb: { prefix: "oebb/", tz: "Europe/Vienna", kind: "dated" },
   hzpp: { prefix: "hzpp/", tz: "Europe/Zagreb", kind: "dated" },
-  sz: { prefix: "sz/", tz: "Europe/Ljubljana", kind: "dated" },
+  // Slovenië (NAP, alleen met account): staat niet op de openbare Pages maar privé in R2, in bundels
+  sz: { prefix: "sz/", tz: "Europe/Ljubljana", kind: "dated", r2: true, shards: 128 },
   // Trenitalia + Italo: weekdienstregeling (geen open live data)
   treni: { prefix: "italia/", tz: "Europe/Rome", kind: "weekly" },
   // Renfe: per datum uitgerekende ritten + live vertragingen en uitvallers
@@ -58,12 +59,23 @@ export default {
 // ---------------------------------------------------------------- data ophalen
 
 async function getJson(env, feed, path) {
+  if (feed.r2) return getPrivateJson(env, feed, path);
   const res = await fetch(env.DATA_URL.replace(/\/$/, "") + "/" + feed.prefix + path, {
     cf: { cacheTtl: DATA_CACHE_SECONDS, cacheEverything: true },
   });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error("data " + res.status);
   return res.json();
+}
+
+// Privé-data uit R2. dep/<id>.json zit in bundel shards/<id % shards>.json (zie scripts/shard.py).
+async function getPrivateJson(env, feed, path) {
+  const dep = path.match(/^dep\/(\d+)\.json$/);
+  const key = feed.prefix + (dep ? "shards/" + (Number(dep[1]) % feed.shards) + ".json" : path);
+  const obj = await env.PRIVATE.get(key);
+  if (!obj) return null;
+  const data = await obj.json();
+  return dep ? data[dep[1]] || null : data;
 }
 
 // trip_id -> {delay (seconden), canceled}. Een kapotte live feed mag de dienstregeling niet blokkeren.

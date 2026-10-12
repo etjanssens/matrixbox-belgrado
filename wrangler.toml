@@ -6,3 +6,8 @@ workers_dev = true
 [vars]
 # Waar de GitHub Action de dienstregelingsdata publiceert (GitHub Pages)
 DATA_URL = "https://etjanssens.github.io/matrixbox-belgrado/"
+
+# Privé-opslag voor data die niet openbaar mag (Slovenië, NAP met account)
+[[r2_buckets]]
+binding = "PRIVATE"
+bucket_name = "matrixbox-private"

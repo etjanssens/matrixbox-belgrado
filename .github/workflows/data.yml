@@ -30,7 +30,7 @@ jobs:
       - run: python3 scripts/build_italia.py public/italia
       - run: python3 scripts/build_dated.py oebb public/oebb
       - run: python3 scripts/build_dated.py hzpp public/hzpp
-      # Slovenië (NAP, met account) gaat NIET naar Pages maar naar privé-opslag (R2); zie de job hieronder zodra die er is.
+      # Slovenië (NAP, met account) gaat NIET naar Pages maar naar privé-opslag (R2): zie job 'slovenia'.
       - uses: actions/upload-pages-artifact@v3
         with:
           path: public
@@ -43,3 +43,52 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  # Slovenië: data van het NAP (alleen met account) mag niet openbaar, dus naar de privé-R2-opslag van de Worker.
+  slovenia:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # De NAP-download is traag (~1 MB/min, ~90 MB): één keer per week, en tussendoor bewaren
+      - id: week
+        run: echo "week=$(date +%G-%V)" >> "$GITHUB_OUTPUT"
+      - id: napcache
+        uses: actions/cache@v4
+        with:
+          path: nap_gtfs.zip
+          key: nap-gtfs-${{ steps.week.outputs.week }}
+          restore-keys: nap-gtfs-
+      - if: steps.napcache.outputs.cache-hit != 'true'
+        env:
+          NAP_USER: ${{ secrets.NAP_USER }}
+          NAP_PASSWORD: ${{ secrets.NAP_PASSWORD }}
+        run: |
+          for attempt in 1 2 3; do
+            # elke poging een nieuwe token: een lange download kan de vorige laten verlopen
+            T=$(curl -sS -X POST https://b2b.nap.si/uc/user/token -d grant_type=password \
+                  --data-urlencode "username=$NAP_USER" --data-urlencode "password=$NAP_PASSWORD" \
+                | python3 -c 'import json,sys; print(json.load(sys.stdin)["access_token"])') || T=""
+            if [ -n "$T" ] && curl -sS --fail --max-time 3600 -H "Authorization: bearer $T" -o nap_gtfs.new https://b2b.nap.si/data/b2b.gtfs \
+               && python3 -c 'import zipfile; zipfile.ZipFile("nap_gtfs.new").testzip()'; then
+              mv nap_gtfs.new nap_gtfs.zip; echo "NAP-download gelukt (poging $attempt)"; break
+            fi
+            echo "NAP-download poging $attempt mislukt"; sleep 30
+          done
+          [ -f nap_gtfs.zip ] || echo "Geen NAP-data; de vorige versie in R2 blijft staan"
+      - if: hashFiles('nap_gtfs.zip') != ''
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 3c36525486d6c6b0fabc244550087529
+        run: |
+          python3 scripts/build_dated.py sz private/sz --zip nap_gtfs.zip
+          python3 scripts/shard.py private/sz
+          npm install -g wrangler@4 >/dev/null 2>&1
+          cd private
+          for f in sz/stops.json sz/shards/*.json; do
+            wrangler r2 object put "matrixbox-private/$f" --file "$f" --content-type application/json --remote >/dev/null
+          done
+          echo "geüpload naar R2: $(ls sz/shards | wc -l) bundels + stops.json"
