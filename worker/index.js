@@ -12,6 +12,7 @@ const FEEDS = {
   // ÖBB en HŽPP: per datum uitgerekende ritten (geen open live data)
   oebb: { prefix: "oebb/", tz: "Europe/Vienna", kind: "dated" },
   hzpp: { prefix: "hzpp/", tz: "Europe/Zagreb", kind: "dated" },
+  sz: { prefix: "sz/", tz: "Europe/Ljubljana", kind: "dated" },
   // Trenitalia + Italo: weekdienstregeling (geen open live data)
   treni: { prefix: "italia/", tz: "Europe/Rome", kind: "weekly" },
   // Renfe: per datum uitgerekende ritten + live vertragingen en uitvallers

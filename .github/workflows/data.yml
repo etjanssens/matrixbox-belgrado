@@ -30,6 +30,30 @@ jobs:
       - run: python3 scripts/build_italia.py public/italia
       - run: python3 scripts/build_dated.py oebb public/oebb
       - run: python3 scripts/build_dated.py hzpp public/hzpp
+      # Slovenië: NAP-download is traag (~1 MB/min, ~90 MB), dus één keer per week en tussendoor bewaren
+      - id: week
+        run: echo "week=$(date +%G-%V)" >> "$GITHUB_OUTPUT"
+      - id: napcache
+        uses: actions/cache@v4
+        with:
+          path: nap_gtfs.zip
+          key: nap-gtfs-${{ steps.week.outputs.week }}
+          restore-keys: nap-gtfs-
+      - if: steps.napcache.outputs.cache-hit != 'true'
+        env:
+          NAP_USER: ${{ secrets.NAP_USER }}
+          NAP_PASSWORD: ${{ secrets.NAP_PASSWORD }}
+        run: |
+          T=$(curl -sf -X POST https://b2b.nap.si/uc/user/token -d grant_type=password \
+                --data-urlencode "username=$NAP_USER" --data-urlencode "password=$NAP_PASSWORD" \
+              | python3 -c 'import json,sys; print(json.load(sys.stdin)["access_token"])') || true
+          if [ -n "$T" ] && curl -sf --max-time 5400 -H "Authorization: bearer $T" -o nap_gtfs.new https://b2b.nap.si/data/b2b.gtfs \
+             && python3 -c 'import zipfile; zipfile.ZipFile("nap_gtfs.new").testzip()'; then
+            mv nap_gtfs.new nap_gtfs.zip
+          else
+            echo "NAP-download mislukt; de vorige versie (indien aanwezig) wordt gebruikt"
+          fi
+      - run: if [ -f nap_gtfs.zip ]; then python3 scripts/build_dated.py sz public/sz --zip nap_gtfs.zip; fi
       - uses: actions/upload-pages-artifact@v3
         with:
           path: public

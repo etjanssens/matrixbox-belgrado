@@ -6,6 +6,7 @@ draait dit elke nacht. Geen live data (die is voor deze landen niet open beschik
 Bronnen:
   oebb  ÖBB Open Data, Soll-Fahrplan GTFS (data.oebb.at), CC BY 4.0
   hzpp  HŽ Putnički prijevoz, GTFS (hzpp.hr)
+  sz    Slovenske železnice, uit de landelijke GTFS van het Sloveense NAP (nap.si, met account)
 
 Uitvoer per bron (public/<bron>):
   stops.json          [[station_id, code, naam, richting-hint], ...]
@@ -56,6 +57,11 @@ def oebb_color(line):
 FEEDS = {
     "oebb": {"url": "https://static.web.oebb.at/open-data/soll-fahrplan-gtfs/GTFS_Fahrplan_{year}.zip",
              "tz": "Europe/Vienna", "line": oebb_line, "color": oebb_color},
+    # Slovenië: de landelijke GTFS van het NAP (nap.si, alleen met account). De Action downloadt hem
+    # wekelijks met een token (NAP_USER/NAP_PASSWORD) en geeft hem via --zip mee. Alleen de treinen van SŽ.
+    "sz": {"url": None, "tz": "Europe/Ljubljana",
+           "routes": lambda r: r["route_type"] == "2" and r.get("agency_id") == "1161",
+           "line": lambda t, r: "SŽ", "color": lambda line: "0062A6"},
     "hzpp": {"url": "https://www.hzpp.hr/GTFS_files.zip", "tz": "Europe/Zagreb",
              # Geen treintypes in de data: alles heet "HŽ" (bussen "BUS"), in HŽ-blauw
              "line": lambda t, r: "BUS" if r["route_type"] == "3" else "HŽ",
@@ -110,6 +116,8 @@ def build(kind, gtfs, out):
     for t in gtfs.rows("trips.txt"):
         if active.get(t["service_id"]) and t["route_id"] in routes:
             r = routes[t["route_id"]]
+            if "routes" in cfg and not cfg["routes"](r):
+                continue
             line = cfg["line"](t, r)
             trips[t["trip_id"]] = (line, "BUS" if r["route_type"] == "3" else "TRAIN", cfg["color"](line),
                                    t.get("trip_headsign", ""), active[t["service_id"]])
@@ -166,6 +174,8 @@ def main():
     args = parser.parse_args()
     if args.zip:
         raw = open(args.zip, "rb").read()
+    elif FEEDS[args.kind]["url"] is None:
+        parser.error(args.kind + " heeft geen open download-URL: geef het zipbestand mee met --zip")
     else:
         url = FEEDS[args.kind]["url"].format(year=datetime.date.today().year + (1 if datetime.date.today() >= datetime.date(datetime.date.today().year, 12, 13) else 0))
         print("download", url)
