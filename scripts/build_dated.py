@@ -143,7 +143,9 @@ FEEDS = {
     # Estland: landelijke open GTFS (Regionaal- ja Põllumajandusministeerium; Elron, bussen, Tallinn, veerboten).
     # Lijnkleuren uit de data (Elron oranje, Tallinn-trams groen, …).
     "ee": {"url": "https://eu-gtfs.remix.com/estonia_unified_gtfs.zip", "tz": "Europe/Tallinn",
-           "line": lambda t, r: r.get("route_short_name") or "BUS", "color": None},
+           # Elron-lijnen als "RE14" passen niet in 3 tekens: bij treinen het type (E/RE/R), anders het lijnnummer
+           "line": lambda t, r: (re.match(r"[A-Z]*", r.get("route_short_name", "")).group(0) or "EL") if r["route_type"] == "2"
+                                else (r.get("route_short_name") or "BUS"), "color": None},
     # Tsjechië: alle treinen (ČD, RegioJet, Leo Express, Arriva, …) uit de officiële CIS JŘ-dienstregeling,
     # omgezet door het Oběhy-project met JrUtil (CC0). Treintype uit trip_short_name ("Os 10020"); lijnen als S1 blijven.
     "cz": {"url": "https://motis.obehy.cz/get-feeds/cz-czptt-gtfs.zip", "tz": "Europe/Prague",
