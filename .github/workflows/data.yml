@@ -38,6 +38,7 @@ jobs:
       - run: python3 scripts/build_dated.py vivi public/vivi
       - run: python3 scripts/build_dated.py rs public/rs
       - run: python3 scripts/build_dated.py atd public/atd
+      - run: python3 scripts/build_dated.py gr public/gr
       # Slovenië (NAP, met account) gaat NIET naar Pages maar naar privé-opslag (R2): zie job 'slovenia'.
       - uses: actions/upload-pages-artifact@v3
         with:

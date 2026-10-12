@@ -127,6 +127,26 @@ def short_agency(name):
     return (words[0][:3] if len(words) == 1 else "".join(w[0] for w in words[:3])).upper()
 
 
+GREEK = {"Α": "A", "Β": "V", "Γ": "G", "Δ": "D", "Ε": "E", "Ζ": "Z", "Η": "I", "Θ": "Th", "Ι": "I", "Κ": "K",
+         "Λ": "L", "Μ": "M", "Ν": "N", "Ξ": "X", "Ο": "O", "Π": "P", "Ρ": "R", "Σ": "S", "Τ": "T", "Υ": "Y",
+         "Φ": "F", "Χ": "Ch", "Ψ": "Ps", "Ω": "O", "Ά": "A", "Έ": "E", "Ή": "I", "Ί": "I", "Ό": "O", "Ύ": "Y",
+         "Ώ": "O", "Ϊ": "I", "Ϋ": "Y"}
+
+
+def greek_to_latin(text):
+    """Eenvoudige transliteratie (ELOT-achtig): "Λαγυνά" -> "Lagyna", "Θεσσαλονίκη" -> "Thessaloniki"."""
+    text = text.replace("ου", "ou").replace("ού", "ou").replace("Ου", "Ou").replace("ΟΥ", "OU")
+    out = []
+    for ch in text:
+        up = ch.upper()
+        if up in GREEK or ch in "ςάέήίόύώϊΐϋΰ":
+            lat = GREEK.get(up) or {"ς": "s", "ΐ": "i", "ΰ": "y"}.get(ch) or GREEK.get(ch.upper(), ch)
+            out.append(lat if ch.isupper() else lat.lower())
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
 FEEDS = {
     "oebb": {"url": "https://static.web.oebb.at/open-data/soll-fahrplan-gtfs/GTFS_Fahrplan_{year}.zip",
              "tz": "Europe/Vienna", "line": oebb_line, "color": oebb_color},
@@ -142,7 +162,8 @@ FEEDS = {
             "dest": lambda t: nice(t.get("trip_short_name", ""))},
     # Estland: landelijke open GTFS (Regionaal- ja Põllumajandusministeerium; Elron, bussen, Tallinn, veerboten).
     # Lijnkleuren uit de data (Elron oranje, Tallinn-trams groen, …).
-    "ee": {"url": "https://eu-gtfs.remix.com/estonia_unified_gtfs.zip", "tz": "Europe/Tallinn",
+    # mark_agency: ritten van het stadsvervoer van Tallinn krijgen een vlag; de Worker vervangt die door live tijden
+    "ee": {"url": "https://eu-gtfs.remix.com/estonia_unified_gtfs.zip", "tz": "Europe/Tallinn", "mark_agency": "10312960",
            # Elron-lijnen als "RE14" passen niet in 3 tekens: bij treinen het type (E/RE/R), anders het lijnnummer
            "line": lambda t, r: (re.match(r"[A-Z]*", r.get("route_short_name", "")).group(0) or "EL") if r["route_type"] == "2"
                                 else (r.get("route_short_name") or "BUS"), "color": None},
@@ -162,6 +183,13 @@ FEEDS = {
     "atd": {"url": "https://www.atd.lv/sites/default/files/GTFS/gtfs-latvia-lv.zip", "tz": "Europe/Riga",
             "line": lambda t, r: "VV" if r["route_type"] == "2" else short_agency(r.get("_agency_name", "")),
             "color": lambda line: "", "color_by_agency": lambda line, r: agency_color(r.get("_agency_name", ""))},
+    # Griekenland: Hellenic Train, community-GTFS van Transitous (gebouwd uit railway.gov.gr; geen licentie vermeld).
+    # Alleen Hellenic Train (geen veerboten). Geen treintypes/bestemmingen: type uit route_type, bestemming = eindstation.
+    # Stationsnamen: Engelse vertaling uit translations.txt, anders Griekse namen getranslitereerd (het bord kent geen Grieks).
+    "gr": {"url": "https://jbb.ghsq.de/gtfs/gr-hellenic-train.gtfs.zip", "tz": "Europe/Athens", "latin_names": True,
+           "routes": lambda r: r.get("agency_id") == "hellenic-train",
+           "line": lambda t, r: {"109": "P", "106": "R", "102": "IC", "2": "R", "3": "BUS"}.get(r["route_type"], "HT"),
+           "color": lambda line: {"P": "0072BC", "R": "2E9E4F", "IC": "C8102E", "BUS": "888888"}.get(line, "")},
     # Baskenland: Euskotren (treinen E1-E4, metro L3, trams Bilbao/Vitoria), Moveuskadi, CC BY 4.0. Officiële lijnkleuren.
     "euskotren": {"url": "ftp://ftp.geo.euskadi.net/cartografia/Transporte/Moveuskadi/Euskotren/google_transit.zip",
                   "tz": "Europe/Madrid", "line": lambda t, r: r.get("route_short_name") or "ET", "color": None},
@@ -192,6 +220,15 @@ class Gtfs:
                 yield {k.strip(): (v or "").strip() for k, v in row.items() if k}
 
 
+def mode_of(route_type):
+    # transport_mode zoals de MatrixBox het kent (filters per soort in de instellingen)
+    if route_type in ("0", "900"): return "TRAM"
+    if route_type in ("1", "401"): return "METRO"
+    if route_type in ("4", "1000", "1200"): return "SHIP"
+    if route_type in ("3", "11", "700", "714", "800"): return "BUS"
+    return "TRAIN"
+
+
 def to_minutes(hms):
     h, m, _ = hms.split(":")
     return int(h) * 60 + int(m)
@@ -214,8 +251,14 @@ def build(kind, gtfs, out):
 
     # stations: perrons volgen hun station (parent_station)
     names, parent, codes = {}, {}, {}
+    english = {}
+    if cfg.get("latin_names"):
+        english = {t["record_id"]: t["translation"] for t in gtfs.rows("translations.txt")
+                   if t.get("table_name") == "stops" and t.get("field_name") == "stop_name" and t.get("language") == "en"}
     for s in gtfs.rows("stops.txt"):
         names[s["stop_id"]] = s["stop_name"]
+        if cfg.get("latin_names"):
+            names[s["stop_id"]] = english.get(s["stop_id"]) or greek_to_latin(s["stop_name"])
         codes[s["stop_id"]] = s.get("stop_code", "")
         if s.get("parent_station"):
             parent[s["stop_id"]] = s["parent_station"]
@@ -238,7 +281,8 @@ def build(kind, gtfs, out):
             else:
                 color = cfg["color"](line) if cfg["color"] else r.get("route_color", "")
             headsign = cfg["dest"](t) if "dest" in cfg else t.get("trip_headsign", "")
-            trips[t["trip_id"]] = (line, "BUS" if r["route_type"] == "3" else "TRAIN", color, headsign, active[t["service_id"]])
+            mark = 1 if cfg.get("mark_agency") and r.get("agency_id") == cfg["mark_agency"] else 0
+            trips[t["trip_id"]] = (line, mode_of(r["route_type"]), color, headsign, active[t["service_id"]], mark)
             line_colors[line] = color
 
     stop_times = defaultdict(list)
@@ -249,10 +293,10 @@ def build(kind, gtfs, out):
 
     per_stop = defaultdict(lambda: defaultdict(set))
     for trip_id, stops in stop_times.items():
-        line, mode, color, headsign, dates = trips[trip_id]
+        line, mode, color, headsign, dates, mark = trips[trip_id]
         stops.sort()
         dest = headsign or names.get(stops[-1][1], "")
-        info = (line, mode, dest, 0, color)
+        info = (line, mode, dest, 0, color, 1) if mark else (line, mode, dest, 0, color)
         for _, sid, dep, pickup in stops[:-1]:
             if pickup == "1" or sid == stops[-1][1]:
                 continue

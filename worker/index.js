@@ -14,7 +14,9 @@ const FEEDS = {
   hzpp: { prefix: "hzpp/", tz: "Europe/Zagreb", kind: "dated" },
   cp: { prefix: "cp/", tz: "Europe/Lisbon", kind: "dated" },
   euskotren: { prefix: "euskotren/", tz: "Europe/Madrid", kind: "dated" },
-  ee: { prefix: "ee/", tz: "Europe/Tallinn", kind: "dated" },
+  // Estland: dienstregeling; voor het stadsvervoer van Tallinn live tijden (transport.tallinn.ee)
+  ee: { prefix: "ee/", tz: "Europe/Tallinn", kind: "dated", live: "tallinn" },
+  gr: { prefix: "gr/", tz: "Europe/Athens", kind: "dated" },
   cz: { prefix: "cz/", tz: "Europe/Prague", kind: "dated" },
   vivi: { prefix: "vivi/", tz: "Europe/Riga", kind: "dated" },
   rs: { prefix: "rs/", tz: "Europe/Riga", kind: "dated" },
@@ -195,6 +197,14 @@ async function departures(env, feed, ids, now) {
     found.push({ sec, info: dep.info, rt });
   }
 
+  if (feed.live === "tallinn") {
+    // Live tijden van het Tallinnse stadsvervoer vervangen de geplande ritten met vlag (info[5]); de rest blijft
+    const live = await tallinnLive(env, feed, ids, local);
+    if (live) {
+      for (let i = found.length - 1; i >= 0; i--) if (found[i].info[5]) found.splice(i, 1);
+      found.push(...live);
+    }
+  }
   found.sort((a, b) => a.sec - b.sec);
   const today = day(local, 0).base;
   return {
@@ -249,6 +259,38 @@ async function lppLive(env, feed, ids, now) {
       if (out.length >= MAX_DEPARTURES) break;
     }
     return { departures: out };
+  } catch (e) {
+    return null;
+  }
+}
+
+// Tallinn: transport.tallinn.ee/siri-stop-departures.php?stopid=<GTFS stop_id> (open, CSV):
+//   Transport,RouteNum,ExpectedTimeInSeconds,ScheduleTimeInSeconds,<nu>,version…
+//   stop,1001
+//   bus,1,48688,48684,Viimsi,376,Z          (tijden in seconden na middernacht)
+async function tallinnLive(env, feed, ids, local) {
+  try {
+    const [colors, ...answers] = await Promise.all([
+      getJson(env, feed, "lines.json").catch(() => null),
+      ...ids.slice(0, 3).map((id) =>
+        fetch("https://transport.tallinn.ee/siri-stop-departures.php?stopid=" + id, { cf: { cacheTtl: 15, cacheEverything: true } })
+          .then((r) => (r.ok ? r.text() : null)).catch(() => null)),
+    ]);
+    if (!answers.some((t) => t && t.startsWith("Transport"))) return null;
+    const out = [];
+    const nowSec = local.minutes * 60;
+    for (const text of answers) {
+      for (const row of (text || "").split("\n").slice(2)) {
+        const f = row.trim().split(",");
+        if (f.length < 5 || !/^\d+$/.test(f[2])) continue;
+        let sec = Number(f[2]);
+        if (sec < nowSec - 3600) sec += 86400; // na middernacht
+        const tram = f[0] === "tram";
+        const line = tram ? "T" + f[1] : f[1];
+        out.push({ sec, info: [line, tram ? "TRAM" : "BUS", niceName(f[4]), 0, (colors && colors[line]) || (tram ? "016e12" : "")], rt: { delay: 0 } });
+      }
+    }
+    return out;
   } catch (e) {
     return null;
   }
