@@ -48,8 +48,17 @@ export default {
     const now = new Date();
     const feed = FEEDS[url.searchParams.get("operator")] || FEEDS.bg;
     // Doorgeefluik voor één open bron die GitHub weigert (ATD Letland, CC0). Vaste URL: geen open proxy.
+    // atd.lv weigert ook Amerikaanse Cloudflare-servers: lukt het ophalen, dan een kopie in R2; anders die kopie.
     if (url.pathname === "/mirror/atd-gtfs.zip") {
-      return fetch("https://www.atd.lv/sites/default/files/GTFS/gtfs-latvia-lv.zip", { cf: { cacheTtl: 3600 } });
+      const res = await fetch("https://www.atd.lv/sites/default/files/GTFS/gtfs-latvia-lv.zip").catch(() => null);
+      if (res && res.ok) {
+        const body = await res.arrayBuffer();
+        await env.PRIVATE.put("mirror/atd-gtfs.zip", body);
+        return new Response(body, { headers: { "Content-Type": "application/zip", "X-Mirror": "live" } });
+      }
+      const copy = await env.PRIVATE.get("mirror/atd-gtfs.zip");
+      if (!copy) return new Response("niet beschikbaar", { status: 502 });
+      return new Response(copy.body, { headers: { "Content-Type": "application/zip", "X-Mirror": "r2-kopie " + copy.uploaded.toISOString() } });
     }
     try {
       if (url.pathname === "/get_departures") {
