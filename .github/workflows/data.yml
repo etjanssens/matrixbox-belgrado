@@ -33,7 +33,9 @@ jobs:
           path: dl-cache
           key: dl-cache-${{ github.run_id }}
           restore-keys: dl-cache-
-      - run: python3 scripts/build.py public
+      - run: mkdir -p public
+      - continue-on-error: true
+        run: python3 scripts/build.py public
       - continue-on-error: true
         run: python3 scripts/build_renfe.py public/renfe
       - continue-on-error: true

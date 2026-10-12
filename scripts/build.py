@@ -28,15 +28,29 @@ MODES = {"0": "TRAM", "3": "BUS", "11": "BUS"}
 
 
 def download_zip():
-    with urllib.request.urlopen(DATASET_API, timeout=60) as r:
-        dataset = json.load(r)
-    zips = [res for res in dataset["resources"] if (res.get("format") or "").lower() == "zip"]
-    if not zips:
-        sys.exit("data.gov.rs heeft geen zip voor deze dataset")
-    latest = max(zips, key=lambda res: res.get("last_modified", ""))
-    print("GTFS:", latest.get("last_modified"), latest["url"])
-    with urllib.request.urlopen(latest["url"], timeout=900) as r:
-        return r.read()
+    """Downloadt de actuele GTFS; lukt dat niet, dan de vorige versie uit $DOWNLOAD_CACHE (indien aanwezig)."""
+    cache_dir = os.environ.get("DOWNLOAD_CACHE")
+    cached = os.path.join(cache_dir, "belgrado-gtfs.zip") if cache_dir else None
+    try:
+        with urllib.request.urlopen(DATASET_API, timeout=60) as r:
+            dataset = json.load(r)
+        zips = [res for res in dataset["resources"] if (res.get("format") or "").lower() == "zip"]
+        if not zips:
+            sys.exit("data.gov.rs heeft geen zip voor deze dataset")
+        latest = max(zips, key=lambda res: res.get("last_modified", ""))
+        print("GTFS:", latest.get("last_modified"), latest["url"])
+        with urllib.request.urlopen(latest["url"], timeout=900) as r:
+            data = r.read()
+    except Exception as e:
+        if cached and os.path.exists(cached):
+            print("DOWNLOAD MISLUKT (%s), vorige versie gebruikt" % e)
+            return open(cached, "rb").read()
+        raise
+    if cached:
+        os.makedirs(cache_dir, exist_ok=True)
+        with open(cached, "wb") as f:
+            f.write(data)
+    return data
 
 
 def read_csv(zf, name):
