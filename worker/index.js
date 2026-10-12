@@ -38,6 +38,7 @@ const FEEDS = {
 const MAX_DEPARTURES = 15; // de MatrixBox ontvangt in kleine stukjes; houd het antwoord compact
 const MAX_SEARCH_RESULTS = 30;
 const DATA_CACHE_SECONDS = 3600;
+const DATA_CACHE_VERSION = 2; // ophogen om oude kopieën in de Cloudflare-cache te negeren
 const REALTIME_CACHE_SECONDS = 30; // Renfe ververst de live feeds elke 30 seconden
 const LOOKBACK_MINUTES = 120; // vertraagde treinen die volgens de dienstregeling al weg zijn
 
@@ -77,8 +78,9 @@ export default {
 
 async function getJson(env, feed, path) {
   if (feed.r2) return getPrivateJson(env, feed, path);
-  const res = await fetch(env.DATA_URL.replace(/\/$/, "") + "/" + feed.prefix + path, {
-    cf: { cacheTtl: DATA_CACHE_SECONDS, cacheEverything: true },
+  // ?v=: nieuwe cache-sleutels na een wijziging; "niet gevonden" maar kort bewaren (een land kan net online komen)
+  const res = await fetch(env.DATA_URL.replace(/\/$/, "") + "/" + feed.prefix + path + "?v=" + DATA_CACHE_VERSION, {
+    cf: { cacheTtlByStatus: { "200-299": DATA_CACHE_SECONDS, "404": 60, "500-599": 0 }, cacheEverything: true },
   });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error("data " + res.status);
