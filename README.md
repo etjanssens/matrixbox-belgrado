@@ -83,3 +83,5 @@ Georgische letters (voor de Georgische bestemmingen) staan in `/lib/font_small.p
 ```bash
 python3 matrixbox/georgian_font.py font_small.py
 ```
+
+De VBZ-weergave (`departures/skins/vbz/renderer.py`, ook buiten de hoofdpatch) zette elk niet-Zwitsers station terug naar Zürich HB. `matrixbox/vbz-renderer.patch` laat elk land toe; opnieuw toepassen met `patch -p1 < matrixbox/vbz-renderer.patch` vanuit de root van het bord.

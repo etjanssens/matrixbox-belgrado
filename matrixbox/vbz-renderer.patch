@@ -1,0 +1,23 @@
+--- a/departures/skins/vbz/renderer.py
++++ b/departures/skins/vbz/renderer.py
+@@ -192,8 +192,10 @@
+ 
+ 
+ def _ensure_station():
++    # Alleen een standaard als er nog geen station is gekozen: elk land werkt (de data komt via
++    # get_departure(), net als in de lijstweergave). Vroeger werd elk niet-Zwitsers station Zuerich HB.
+     stn = varinit.settings["stations"]["1"]
+-    if stn.get("country") != "ch" or stn.get("operator") != "ch":
++    if not stn.get("country") or not str(stn.get("siteid", "")).strip("0"):
+         stn["country"] = "ch"
+         stn["operator"] = "ch"
+         stn["siteid"] = "8503000"  # Zuerich HB - sensible default until the user searches their own stop
+@@ -205,7 +207,7 @@
+     dest = str(row[2])
+     mins = str(row[3])
+     raw_color = row[5] if len(row) > 5 else ""
+-    raw_delay = row[6] if len(row) > 6 else ""
++    raw_delay = str(row[6] or "") if len(row) > 6 else ""  # andere bronnen kunnen een getal sturen
+ 
+     color_mode = int(varinit.settings.get("vbz_color", 1))
+     if color_mode:
