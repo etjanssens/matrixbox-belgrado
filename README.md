@@ -77,3 +77,9 @@ cd /Volumes/CIRCUITPY && patch -p1 < ~/Desktop/matrixbox-belgrado/matrixbox/depa
 ```
 
 (De MatrixBox heeft weinig vrije ruimte; als `patch` faalt omdat de schijf vol is, overschrijf de bestanden dan ter plekke.)
+
+Georgische letters (voor de Georgische bestemmingen) staan in `/lib/font_small.py`, buiten de patch. Na een firmware-update opnieuw toevoegen aan een kopie van dat bestand en terugzetten:
+
+```bash
+python3 matrixbox/georgian_font.py font_small.py
+```

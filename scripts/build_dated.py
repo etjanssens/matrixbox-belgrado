@@ -219,10 +219,13 @@ FEEDS = {
     # Type: 102 = sneltrein (IC), 106 = regionaal (R); route_type 2 zijn de nachttreinen naar Jerevan/Bakoe (nummers
     # met 2-3 cijfers, IC) en stoptreinen Khashuri-Zestafoni (4 cijfers, R), zoals de oude Sovjet-nummering.
     # Azerbeidzjaanse namen naar het Engels (ə/ı kent het bord niet); Tbilisi Centraal staat er twee keer in.
+    # Bestemmingen in het Georgisch (translations.txt, "ka"; de letters zitten in matrixbox/georgian_font.py),
+    # stationsnamen voor het zoeken blijven Latijns. Zonder Georgische naam (Bakoe, Jerevan) de Latijnse.
     "ge": {"url": "https://jbb.ghsq.de/gtfs/ge-georgian-railway.gtfs.zip", "tz": "Asia/Tbilisi",
            "rename": {"Bakı": "Baku", "Biləcəri": "Bilajari", "Ağstafa Stansiyası": "Agstafa", "Yevlax Stansiyası": "Yevlakh",
                       "Böyük Kəsik": "Boyuk Kasik", "Tbilisi Central Station": "Tbilisi-Central"},
-           "ascii_names": True, "merge_same_name": True,
+           "ascii_names": True, "merge_same_name": True, "dest_lang": "ka",
+           "dest_rename": {"თბილისის ცენტრალური სადგური": "თბილისი"},  # "Tbilisi Centraal Station" is te lang
            "line": lambda t, r: "IC" if r["route_type"] == "102" or (r["route_type"] == "2" and len(r.get("route_short_name", "")) <= 3)
                                 else "R",
            "color": lambda line: {"IC": "C8102E", "R": "2E9E4F"}.get(line, "")},
@@ -315,6 +318,13 @@ def build(kind, gtfs, out):
                 parent.setdefault(sid, first.setdefault(name, sid))
         parent = {k: v for k, v in parent.items() if k != v}
     station = lambda sid: parent.get(sid, sid)
+    dest_names = dict(names)  # bestemming op het bord; met dest_lang in die taal (als de vertaling er is)
+    if cfg.get("dest_lang"):
+        for t in gtfs.rows("translations.txt"):
+            if (t.get("table_name"), t.get("field_name"), t.get("language")) == ("stops", "stop_name", cfg["dest_lang"]) \
+                    and t.get("record_id") in names and any("\u10d0" <= c <= "\u10ff" for c in t.get("translation", "")):
+                name = " ".join(t["translation"].split())  # alleen echte Georgische namen (niet "Bakı")
+                dest_names[t["record_id"]] = cfg.get("dest_rename", {}).get(name, name)
 
     agencies = {a.get("agency_id", ""): a.get("agency_name", "") for a in gtfs.rows("agency.txt")}
     routes = {}
@@ -347,7 +357,7 @@ def build(kind, gtfs, out):
     for trip_id, stops in stop_times.items():
         line, mode, color, headsign, dates, mark = trips[trip_id]
         stops.sort()
-        dest = headsign or names.get(stops[-1][1], "")
+        dest = headsign or dest_names.get(stops[-1][1], "")
         info = (line, mode, dest, 0, color, 1) if mark else (line, mode, dest, 0, color)
         for _, sid, dep, pickup in stops[:-1]:
             if pickup == "1" or sid == stops[-1][1]:
