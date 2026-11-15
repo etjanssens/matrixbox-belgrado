@@ -26,6 +26,7 @@ import os
 import re
 import shutil
 import subprocess
+import unicodedata
 import urllib.request
 import zipfile
 import zlib
@@ -213,6 +214,18 @@ FEEDS = {
            "routes": lambda r: r.get("agency_id") == "hellenic-train",
            "line": lambda t, r: {"109": "P", "106": "R", "102": "IC", "2": "R", "3": "BUS"}.get(r["route_type"], "HT"),
            "color": lambda line: {"P": "0072BC", "R": "2E9E4F", "IC": "C8102E", "BUS": "888888"}.get(line, "")},
+    # Georgië: Georgian Railway, community-GTFS van Transitous (gitlab.spline.de/spline/transitous/georgian-railways-gtfs,
+    # gebouwd uit gr.com.ge en OpenStreetMap). Namen al in het Engels; treinnummer in route_short_name.
+    # Type: 102 = sneltrein (IC), 106 = regionaal (R); route_type 2 zijn de nachttreinen naar Jerevan/Bakoe (nummers
+    # met 2-3 cijfers, IC) en stoptreinen Khashuri-Zestafoni (4 cijfers, R), zoals de oude Sovjet-nummering.
+    # Azerbeidzjaanse namen naar het Engels (ə/ı kent het bord niet); Tbilisi Centraal staat er twee keer in.
+    "ge": {"url": "https://jbb.ghsq.de/gtfs/ge-georgian-railway.gtfs.zip", "tz": "Asia/Tbilisi",
+           "rename": {"Bakı": "Baku", "Biləcəri": "Bilajari", "Ağstafa Stansiyası": "Agstafa", "Yevlax Stansiyası": "Yevlakh",
+                      "Böyük Kəsik": "Boyuk Kasik", "Tbilisi Central Station": "Tbilisi-Central"},
+           "ascii_names": True, "merge_same_name": True,
+           "line": lambda t, r: "IC" if r["route_type"] == "102" or (r["route_type"] == "2" and len(r.get("route_short_name", "")) <= 3)
+                                else "R",
+           "color": lambda line: {"IC": "C8102E", "R": "2E9E4F"}.get(line, "")},
     # Baskenland: Euskotren (treinen E1-E4, metro L3, trams Bilbao/Vitoria), Moveuskadi, CC BY 4.0. Officiële lijnkleuren.
     "euskotren": {"url": "ftp://ftp.geo.euskadi.net/cartografia/Transporte/Moveuskadi/Euskotren/google_transit.zip",
                   "tz": "Europe/Madrid", "line": lambda t, r: r.get("route_short_name") or "ET", "color": None},
@@ -252,6 +265,13 @@ def mode_of(route_type):
     return "TRAIN"
 
 
+def to_ascii(text):
+    """Accenten weg en letters die het bord niet kent omzetten: "Böyük Kəsik" -> "Boyuk Kasik"."""
+    text = text.translate(str.maketrans({"ə": "a", "Ə": "A", "ı": "i", "İ": "I", "ğ": "g", "Ğ": "G", "ş": "sh", "Ş": "Sh",
+                                         "ç": "ch", "Ç": "Ch", "đ": "dj", "Đ": "Dj", "ł": "l", "Ł": "L", "ß": "ss"}))
+    return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
+
+
 def to_minutes(hms):
     h, m, _ = hms.split(":")
     return int(h) * 60 + int(m)
@@ -282,9 +302,18 @@ def build(kind, gtfs, out):
         names[s["stop_id"]] = s["stop_name"]
         if cfg.get("latin_names"):
             names[s["stop_id"]] = english.get(s["stop_id"]) or greek_to_latin(s["stop_name"])
+        names[s["stop_id"]] = cfg.get("rename", {}).get(names[s["stop_id"]], names[s["stop_id"]])
+        if cfg.get("ascii_names"):
+            names[s["stop_id"]] = to_ascii(names[s["stop_id"]])
         codes[s["stop_id"]] = s.get("stop_code", "")
         if s.get("parent_station"):
             parent[s["stop_id"]] = s["parent_station"]
+    if cfg.get("merge_same_name"):  # losse haltes met dezelfde naam (zonder parent_station) worden één station
+        first = {}
+        for sid, name in names.items():
+            if sid not in parent:
+                parent.setdefault(sid, first.setdefault(name, sid))
+        parent = {k: v for k, v in parent.items() if k != v}
     station = lambda sid: parent.get(sid, sid)
 
     agencies = {a.get("agency_id", ""): a.get("agency_name", "") for a in gtfs.rows("agency.txt")}
