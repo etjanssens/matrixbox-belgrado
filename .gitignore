@@ -4,3 +4,4 @@ node_modules/
 *.zip
 backup-origineel/
 backup-v0985/
+private/

@@ -18,6 +18,8 @@ const FEEDS = {
   ee: { prefix: "ee/", tz: "Europe/Tallinn", kind: "dated", live: "tallinn" },
   gr: { prefix: "gr/", tz: "Europe/Athens", kind: "dated" },
   ge: { prefix: "ge/", tz: "Asia/Tbilisi", kind: "dated" },
+  // Oezbekistan: met de hand overgenomen vertrekstaten (geen open data) -> privé in R2, weekdienstregeling
+  uz: { prefix: "uz/", tz: "Asia/Tashkent", kind: "weekly", r2: true, shards: 1 },
   cz: { prefix: "cz/", tz: "Europe/Prague", kind: "dated" },
   vivi: { prefix: "vivi/", tz: "Europe/Riga", kind: "dated" },
   rs: { prefix: "rs/", tz: "Europe/Riga", kind: "dated" },
