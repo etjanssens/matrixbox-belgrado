@@ -1,10 +1,9 @@
 --- a/departures/functions.py
 +++ b/departures/functions.py
-@@ -7,6 +7,13 @@
- id = "".join(mac)
+@@ -8,7 +8,14 @@
  #ap_name = "t-skylt" + id[-2:]; varinit.ap_name = ap_name
  ap_name = "matrixbox-" + "".join(mac).replace("0x","")[:3] # mac-id för hotspot
-+
+ 
 +# Landen/vervoerders die niet via data.t-skylt.se gaan maar via een eigen server: "land" of "land/vervoerder" -> (host, poort)
 +_own = ("matrixbox-belgrado.emieljanssens.workers.dev", 80)
 +custom_apis = {"rs": _own, "es/renfe": _own, "it/treni": _own, "at/oebb": _own, "at/atrail": _own, "cr/hzpp": _own, "si": _own,
@@ -12,8 +11,10 @@
 +def api_host(country, operator=""):
 +    return custom_apis.get(country + "/" + operator) or custom_apis.get(country) or ("data.t-skylt.se", 90)
  
- 
++
  def pwd_gen(): return id.replace("0x","")[:8]
+ def cls(__screen, _refresh=False):
+     __screen.fill(0)
 @@ -213,7 +220,8 @@
      operator = varinit.settings["stations"]["1"]["operator"]
      siteid = varinit.settings["stations"]["1"]["siteid"]
@@ -57,7 +58,16 @@
          date = date.split("\r\n")[0]
          varinit.currenttime = convert_date(date)
      except: pass
-@@ -571,7 +580,8 @@
+@@ -529,6 +538,8 @@
+             if not int(all["direction_code"]) or not int(direction) or int(direction) == int(all["direction_code"]):
+                 _minsleft = str(all["expected"].split("T")[1][:5]) if clocktime else minsleft
+                 if line["id"] == "0": line["id"] = ""
++                # Noorwegen (Entur via T-Skylt): AtB-bussen komen als "2_25" binnen; het echte lijnnummer staat na de "_"
++                if stn["country"] == "no" and "_" in str(line["id"]): line["id"] = str(line["id"]).split("_", 1)[1]
+                 try: 
+                     delay = all["deviations"][0] if rt_indicator else ""
+                 except: delay = ""
+@@ -571,7 +582,8 @@
      else:
        try: 
          temperature_check()
@@ -67,7 +77,7 @@
          if _data: data = json.loads(_data)
          else: 
              varinit.active_message = True
-@@ -756,6 +766,7 @@
+@@ -756,6 +768,7 @@
      elif sys_msg == "green": _color = (0,7)
      elif sys_msg == "white": _color = (0,2)
      elif sys_msg == "yellow": _color = (0,1)
@@ -75,7 +85,7 @@
      
      font = fonts[varinit.currentfont]
      if smallfont == True: font = fonts[1]
-@@ -928,7 +939,59 @@
+@@ -928,7 +941,59 @@
      else:
          kept.append(reserved_row)
      return kept
@@ -135,7 +145,7 @@
  def list_mode(mini=False, half=False):
      mini = varinit.settings["mini"]
  
-@@ -964,6 +1027,7 @@
+@@ -964,6 +1029,7 @@
  
      _dest_scroll = int(varinit.settings.get("dest_scroll", 0))
      _now = time.monotonic()
@@ -143,7 +153,7 @@
      cls(topbottom)
      # Hide dest TileGrids and overlay; will be shown per-row if dest_scroll active
      try:
-@@ -971,6 +1035,7 @@
+@@ -971,6 +1037,7 @@
          varinit.overlay_tg.hidden = True
          varinit.overlay_bmp.fill(0)
          varinit.dest_scroll_state = {}
@@ -151,7 +161,7 @@
      except: pass
  
      if varinit.shared["startup"]:
-@@ -1078,6 +1143,17 @@
+@@ -1078,6 +1145,17 @@
                      if isinstance(_a, list) and len(_a) > 1:
                          _w = strlen(_a[1][:varinit.settings["line_length"]])
                          if _w > _norm_max_lw: _norm_max_lw = _w
@@ -169,7 +179,7 @@
  
              for x, all in enumerate(trainlist):
  
-@@ -1183,6 +1259,10 @@
+@@ -1183,6 +1261,10 @@
          
                  min_color = "white" if varinit.settings.get("listcolor_time", 0) or varinit.rotated else "yellow"
                  lin_color = "yellow" if not varinit.settings["listcolor"] else "white"
@@ -180,7 +190,7 @@
                  clock_color = varinit.settings.get("clock_row_color", "white")
                  if varinit.rotated or varinit.display.width <= 64:
                      added_space_w = 0
-@@ -1227,18 +1307,36 @@
+@@ -1227,18 +1309,36 @@
                          varinit.dest_bmps[x].fill(0)
                          renderstring(dest, 100+x, 0, 0, inv, mini=mini,
                                       target_bmp=varinit.dest_bmps[x], target_offs=0)
