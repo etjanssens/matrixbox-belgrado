@@ -42,7 +42,7 @@ const FEEDS = {
 const MAX_DEPARTURES = 15; // de MatrixBox ontvangt in kleine stukjes; houd het antwoord compact
 const MAX_SEARCH_RESULTS = 30;
 const DATA_CACHE_SECONDS = 3600;
-const DATA_CACHE_VERSION = 2; // ophogen om oude kopieën in de Cloudflare-cache te negeren
+const DATA_CACHE_VERSION = 3; // ophogen om oude kopieën in de Cloudflare-cache te negeren
 const REALTIME_CACHE_SECONDS = 30; // Renfe ververst de live feeds elke 30 seconden
 const LOOKBACK_MINUTES = 120; // vertraagde treinen die volgens de dienstregeling al weg zijn
 
