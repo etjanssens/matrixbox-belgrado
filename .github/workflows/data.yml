@@ -64,6 +64,8 @@ jobs:
         run: python3 scripts/build_dated.py gr public/gr
       - continue-on-error: true
         run: python3 scripts/build_dated.py ge public/ge
+      - continue-on-error: true
+        run: python3 scripts/build_dated.py th public/th
       # Slovenië (NAP, met account) gaat NIET naar Pages maar naar privé-opslag (R2): zie job 'slovenia'.
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -229,6 +229,21 @@ FEEDS = {
            "line": lambda t, r: "IC" if r["route_type"] == "102" or (r["route_type"] == "2" and len(r.get("route_short_name", "")) <= 3)
                                 else "R",
            "color": lambda line: {"IC": "C8102E", "R": "2E9E4F"}.get(line, "")},
+    # Thailand: State Railway of Thailand (SRT) uit de landelijke GTFS "Namtang" van het Thaise ministerie van Verkeer
+    # (OTP, namtang.otp.go.th), CC BY 4.0, via de spiegel van de Mobility Database (mdb-1831). Alleen de SRT-treinen:
+    # bussen, metro en BTS staan er alleen als frequentie ("elke 5 minuten") in, zonder echte tijden.
+    # Namen zijn "Thai;English": we nemen het Engels, zonder "SRT " ervoor (soms "STR"/"ARL", soms met tab).
+    # Bestemming = eindstation (de headsigns zijn rommelig). Lijn = treinsoort, kleuren eigen keuze.
+    # Een deel van de ritten (o.a. nachttreinen naar Chiang Mai, Hat Yai) heeft neptijden 00:00, 00:01, …: die vallen weg.
+    "th": {"url": "https://files.mobilitydatabase.org/mdb-1831/latest.zip", "tz": "Asia/Bangkok",
+           "routes": lambda r: r.get("agency_id") == "SRT",
+           "name": lambda n: re.sub(r"^(SRT|STR|ARL)\s+", "", n.split(";")[-1].strip()),
+           "rename": {"Bangkok": "Hua Lamphong", "Bangkok (Krung Thep Aphiwat)": "Krung Thep Aphiwat",
+                      "RAMATHIBODI HOSPITAL": "Ramathibodi Hospital"},
+           "merge_same_name": True, "dest": lambda t: "", "skip_dummy_times": True,
+           "line": lambda t, r: th_line(r.get("route_desc", "")),
+           "color": lambda line: {"SP": "C8102E", "EXP": "1F5FA8", "RAP": "F28C28", "ORD": "2E9E4F",
+                                  "COM": "00B2A9", "ML": "A35CA0"}.get(line, "")},
     # Baskenland: Euskotren (treinen E1-E4, metro L3, trams Bilbao/Vitoria), Moveuskadi, CC BY 4.0. Officiële lijnkleuren.
     "euskotren": {"url": "ftp://ftp.geo.euskadi.net/cartografia/Transporte/Moveuskadi/Euskotren/google_transit.zip",
                   "tz": "Europe/Madrid", "line": lambda t, r: r.get("route_short_name") or "ET", "color": None},
@@ -257,6 +272,17 @@ class Gtfs:
             # skipinitialspace: sommige bronnen (ATD Letland) scheiden velden met ", "
             for row in csv.DictReader(io.TextIOWrapper(f, encoding="utf-8-sig"), skipinitialspace=True):
                 yield {k.strip(): (v or "").strip() for k, v in row.items() if k}
+
+
+def th_line(desc):
+    """Treinsoort uit route_desc ("...;State Railway of Thailand Special Express") -> korte code voor de lijnkolom."""
+    desc = desc.split(";")[-1].lower()
+    if "maeklong" in desc or "mahachai" in desc: return "ML"  # Maeklong-lijn (Wongwian Yai-Mahachai, Ban Laem-Mae Klong)
+    if "special express" in desc: return "SP"
+    if "express" in desc: return "EXP"
+    if "rapid" in desc: return "RAP"
+    if "city" in desc: return "COM"  # forenzentreinen (City / Special City)
+    return "ORD"
 
 
 def mode_of(route_type):
@@ -302,7 +328,7 @@ def build(kind, gtfs, out):
         english = {t["record_id"]: t["translation"] for t in gtfs.rows("translations.txt")
                    if t.get("table_name") == "stops" and t.get("field_name") == "stop_name" and t.get("language") == "en"}
     for s in gtfs.rows("stops.txt"):
-        names[s["stop_id"]] = s["stop_name"]
+        names[s["stop_id"]] = cfg["name"](s["stop_name"]) if "name" in cfg else s["stop_name"]
         if cfg.get("latin_names"):
             names[s["stop_id"]] = english.get(s["stop_id"]) or greek_to_latin(s["stop_name"])
         names[s["stop_id"]] = cfg.get("rename", {}).get(names[s["stop_id"]], names[s["stop_id"]])
@@ -357,6 +383,8 @@ def build(kind, gtfs, out):
     for trip_id, stops in stop_times.items():
         line, mode, color, headsign, dates, mark = trips[trip_id]
         stops.sort()
+        if cfg.get("skip_dummy_times") and stops[0][2] <= "00:01:00" and stops[-1][2] < "00:30:00":
+            continue  # neptijden (00:00, 00:01, 00:02, … per halte): liever geen trein dan een verkeerde tijd
         dest = headsign or dest_names.get(stops[-1][1], "")
         info = (line, mode, dest, 0, color, 1) if mark else (line, mode, dest, 0, color)
         for _, sid, dep, pickup in stops[:-1]:
