@@ -85,4 +85,10 @@ Georgische letters (voor de Georgische bestemmingen) staan in `/lib/font_small.p
 python3 matrixbox/georgian_font.py font_small.py
 ```
 
+Hetzelfde voor de Thaise bestemmingen: de letters staan in `matrixbox/thai_font.py`. Het bord kent geen tekens boven of onder een letter, dus elke combinatie (zoals รุ of ดื่) is één eigen teken in de Private Use Area (U+E000 en verder); het bouwscript zet de namen daarin om en laat een naam Latijns als er een letter in staat die nog niet getekend is. Nieuwe combinaties alleen achteraan `CLUSTERS` toevoegen, zodat de codes op het bord gelijk blijven. Opnieuw toevoegen na een firmware-update:
+
+```bash
+python3 matrixbox/thai_font.py font_small.py
+```
+
 De VBZ-weergave (`departures/skins/vbz/renderer.py`, ook buiten de hoofdpatch) zette elk niet-Zwitsers station terug naar Zürich HB. `matrixbox/vbz-renderer.patch` laat elk land toe; opnieuw toepassen met `patch -p1 < matrixbox/vbz-renderer.patch` vanuit de root van het bord.

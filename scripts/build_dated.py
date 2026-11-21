@@ -241,6 +241,7 @@ FEEDS = {
            "rename": {"Bangkok": "Hua Lamphong", "Bangkok (Krung Thep Aphiwat)": "Krung Thep Aphiwat",
                       "RAMATHIBODI HOSPITAL": "Ramathibodi Hospital"},
            "merge_same_name": True, "dest": lambda t: "", "skip_dummy_times": True,
+           "dest_name": lambda n: th_dest(n),
            "line": lambda t, r: th_line(r.get("route_desc", "")),
            "color": lambda line: {"SP": "C8102E", "EXP": "1F5FA8", "RAP": "F28C28", "ORD": "2E9E4F",
                                   "COM": "00B2A9", "ML": "A35CA0"}.get(line, "")},
@@ -285,6 +286,23 @@ def th_line(desc):
     return "ORD"
 
 
+# Thaise bestemmingen: het Thaise deel van "Thai;English", in de tekens van matrixbox/thai_font.py (eigen letters op
+# het bord). Lukt dat niet (letter nog niet getekend), dan blijft het Latijns. กรุงเทพ ("Bangkok") is Hua Lamphong.
+TH_RENAME = {"กรุงเทพ": "หัวลำโพง"}
+
+
+def th_dest(raw):
+    if ";" not in raw:
+        return None
+    import sys
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "matrixbox"))
+    import thai_font
+    name = re.sub(r"^SRT\s*", "", " ".join(raw.split(";")[0].split()))
+    if not any("\u0e01" <= c <= "\u0e5b" for c in name):
+        return None
+    return thai_font.encode(TH_RENAME.get(name, name))
+
+
 def mode_of(route_type):
     # transport_mode zoals de MatrixBox het kent (filters per soort in de instellingen)
     if route_type in ("0", "900"): return "TRAM"
@@ -322,12 +340,13 @@ def build(kind, gtfs, out):
             (active[cd["service_id"]].add if cd["exception_type"] == "1" else active[cd["service_id"]].discard)(cd["date"])
 
     # stations: perrons volgen hun station (parent_station)
-    names, parent, codes = {}, {}, {}
+    names, parent, codes, raw_names = {}, {}, {}, {}
     english = {}
     if cfg.get("latin_names"):
         english = {t["record_id"]: t["translation"] for t in gtfs.rows("translations.txt")
                    if t.get("table_name") == "stops" and t.get("field_name") == "stop_name" and t.get("language") == "en"}
     for s in gtfs.rows("stops.txt"):
+        raw_names[s["stop_id"]] = s["stop_name"]
         names[s["stop_id"]] = cfg["name"](s["stop_name"]) if "name" in cfg else s["stop_name"]
         if cfg.get("latin_names"):
             names[s["stop_id"]] = english.get(s["stop_id"]) or greek_to_latin(s["stop_name"])
@@ -345,6 +364,9 @@ def build(kind, gtfs, out):
         parent = {k: v for k, v in parent.items() if k != v}
     station = lambda sid: parent.get(sid, sid)
     dest_names = dict(names)  # bestemming op het bord; met dest_lang in die taal (als de vertaling er is)
+    if "dest_name" in cfg:  # eigen schrift uit de stopnaam zelf (Thailand); None = Latijns laten
+        for sid, raw in raw_names.items():
+            dest_names[sid] = cfg["dest_name"](raw) or dest_names[sid]
     if cfg.get("dest_lang"):
         for t in gtfs.rows("translations.txt"):
             if (t.get("table_name"), t.get("field_name"), t.get("language")) == ("stops", "stop_name", cfg["dest_lang"]) \
@@ -380,12 +402,14 @@ def build(kind, gtfs, out):
                                               st["departure_time"], st.get("pickup_type", "")))
 
     per_stop = defaultdict(lambda: defaultdict(set))
+    latin_dest = {}  # bestemming op het bord -> Latijnse naam (voor de zoekhints)
     for trip_id, stops in stop_times.items():
         line, mode, color, headsign, dates, mark = trips[trip_id]
         stops.sort()
         if cfg.get("skip_dummy_times") and stops[0][2] <= "00:01:00" and stops[-1][2] < "00:30:00":
             continue  # neptijden (00:00, 00:01, 00:02, … per halte): liever geen trein dan een verkeerde tijd
         dest = headsign or dest_names.get(stops[-1][1], "")
+        latin_dest[dest] = headsign or names.get(stops[-1][1], "")
         info = (line, mode, dest, 0, color, 1) if mark else (line, mode, dest, 0, color)
         for _, sid, dep, pickup in stops[:-1]:
             if pickup == "1" or sid == stops[-1][1]:
@@ -406,7 +430,7 @@ def build(kind, gtfs, out):
                     index[info] = len(lines)
                     lines.append(list(info))
                 rows.append([minutes, index[info]])
-                dests[info[2]] += 1
+                dests[latin_dest.get(info[2], info[2])] += 1  # zoekhint in de webinterface: Latijns
             data[d] = rows
         num = sid if sid.isdigit() else str(zlib.crc32(sid.encode()))  # vast per station, alleen cijfers (Worker)
         if cfg.get("use_stop_code") and codes.get(sid, "").isdigit():
