@@ -15,7 +15,18 @@
  def pwd_gen(): return id.replace("0x","")[:8]
  def cls(__screen, _refresh=False):
      __screen.fill(0)
-@@ -213,7 +220,8 @@
+@@ -18,7 +25,9 @@
+     microcontroller.reset()
+ def strlen(_string): 
+     if isinstance(_string, str): _string = _string.lower()
+-    return sum(fonts[varinit.currentfont][c][0] for c in _string)
++    # Onbekende tekens tellen als "_", net als renderstring ze tekent (anders KeyError, bv. Thais in font_large)
++    _f = fonts[varinit.currentfont]
++    return sum((_f[c] if c in _f else _f["_"])[0] for c in _string)
+ 
+ LOGO_CHAR = "Ⓜ"
+ LOGO_CHAR = "🇹"
+@@ -213,7 +222,8 @@
      operator = varinit.settings["stations"]["1"]["operator"]
      siteid = varinit.settings["stations"]["1"]["siteid"]
      if not len(varinit.deviations_list):
@@ -25,7 +36,7 @@
          data = json.loads(data)
          varinit.deviations_list = data
      print(*varinit.deviations_list, sep='\n')
-@@ -333,7 +341,7 @@
+@@ -333,7 +343,7 @@
      varinit.text = load_text()
      # Destination text smooth-scroll TileGrids (one bitmap per row, transparent background)
      _max_rows = max(8, varinit.if_tall // 6)
@@ -34,7 +45,7 @@
      _dest_palette = displayio.Palette(2)
      _dest_palette[0] = 0x000000
      _dest_palette.make_transparent(0)
-@@ -347,10 +355,10 @@
+@@ -347,10 +357,10 @@
          _dest_tg_group.append(_dtg)
      varinit.group.append(_dest_tg_group)
      # Overlay TileGrid: line ID + minutes text drawn on top of dest TileGrids (transparent bg)
@@ -48,7 +59,7 @@
      varinit.overlay_tg = displayio.TileGrid(varinit.overlay_bmp, pixel_shader=varinit.overlay_palette, x=0, y=0)
      varinit.overlay_tg.hidden = True
      _overlay_group = displayio.Group()
-@@ -456,7 +464,8 @@
+@@ -456,7 +466,8 @@
      except: print("Reading error")
      
      try:
@@ -58,7 +69,7 @@
          date = date.split("\r\n")[0]
          varinit.currenttime = convert_date(date)
      except: pass
-@@ -529,6 +538,8 @@
+@@ -529,6 +540,8 @@
              if not int(all["direction_code"]) or not int(direction) or int(direction) == int(all["direction_code"]):
                  _minsleft = str(all["expected"].split("T")[1][:5]) if clocktime else minsleft
                  if line["id"] == "0": line["id"] = ""
@@ -67,7 +78,7 @@
                  try: 
                      delay = all["deviations"][0] if rt_indicator else ""
                  except: delay = ""
-@@ -571,7 +582,8 @@
+@@ -571,7 +584,8 @@
      else:
        try: 
          temperature_check()
@@ -77,7 +88,7 @@
          if _data: data = json.loads(_data)
          else: 
              varinit.active_message = True
-@@ -756,6 +768,7 @@
+@@ -756,6 +770,7 @@
      elif sys_msg == "green": _color = (0,7)
      elif sys_msg == "white": _color = (0,2)
      elif sys_msg == "yellow": _color = (0,1)
@@ -85,7 +96,7 @@
      
      font = fonts[varinit.currentfont]
      if smallfont == True: font = fonts[1]
-@@ -928,7 +941,59 @@
+@@ -928,7 +943,59 @@
      else:
          kept.append(reserved_row)
      return kept
@@ -145,7 +156,7 @@
  def list_mode(mini=False, half=False):
      mini = varinit.settings["mini"]
  
-@@ -964,6 +1029,7 @@
+@@ -964,6 +1031,7 @@
  
      _dest_scroll = int(varinit.settings.get("dest_scroll", 0))
      _now = time.monotonic()
@@ -153,7 +164,7 @@
      cls(topbottom)
      # Hide dest TileGrids and overlay; will be shown per-row if dest_scroll active
      try:
-@@ -971,6 +1037,7 @@
+@@ -971,6 +1039,7 @@
          varinit.overlay_tg.hidden = True
          varinit.overlay_bmp.fill(0)
          varinit.dest_scroll_state = {}
@@ -161,7 +172,7 @@
      except: pass
  
      if varinit.shared["startup"]:
-@@ -1078,6 +1145,17 @@
+@@ -1078,6 +1147,17 @@
                      if isinstance(_a, list) and len(_a) > 1:
                          _w = strlen(_a[1][:varinit.settings["line_length"]])
                          if _w > _norm_max_lw: _norm_max_lw = _w
@@ -179,7 +190,7 @@
  
              for x, all in enumerate(trainlist):
  
-@@ -1183,6 +1261,10 @@
+@@ -1183,6 +1263,10 @@
          
                  min_color = "white" if varinit.settings.get("listcolor_time", 0) or varinit.rotated else "yellow"
                  lin_color = "yellow" if not varinit.settings["listcolor"] else "white"
@@ -190,7 +201,7 @@
                  clock_color = varinit.settings.get("clock_row_color", "white")
                  if varinit.rotated or varinit.display.width <= 64:
                      added_space_w = 0
-@@ -1227,18 +1309,36 @@
+@@ -1227,18 +1311,36 @@
                          varinit.dest_bmps[x].fill(0)
                          renderstring(dest, 100+x, 0, 0, inv, mini=mini,
                                       target_bmp=varinit.dest_bmps[x], target_offs=0)
