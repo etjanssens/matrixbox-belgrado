@@ -1,6 +1,31 @@
 --- a/departures/skins/vbz/renderer.py
 +++ b/departures/skins/vbz/renderer.py
-@@ -192,8 +192,10 @@
+@@ -156,6 +156,24 @@
+     bg = _hex_to_rgb(parts[0]) if len(parts) > 0 else None
+     fg = _hex_to_rgb(parts[1]) if len(parts) > 1 else None
+     return _finish_color(bg, fg)
++
++
++# Bronnen zonder eigen lijnkleur (o.a. Zweden via T-Skylt) zouden allemaal grijs worden: dan een vaste
++# huiskleur per vervoerder, anders een vaste kleur afgeleid van de lijnnaam (elke lijn steeds dezelfde).
++_OPERATOR_COLORS = {
++    "SJ": "fff~000",  # zwart logo op wit
++}
++_FALLBACK_COLORS = ("0067b1", "00843d", "7a1f7c", "e87722", "008c95", "c8102e", "b38f00", "5b3f99")
++
++
++def _fallback_color(name):
++    name = str(name).strip()
++    if name in _OPERATOR_COLORS:
++        return _OPERATOR_COLORS[name]
++    h = 0
++    for c in name:
++        h = (h * 31 + ord(c)) & 0xFFFF
++    return _FALLBACK_COLORS[h % len(_FALLBACK_COLORS)]
+ 
+ 
+ def _width(text, font_index):
+@@ -192,8 +210,10 @@
  
  
  def _ensure_station():
@@ -12,11 +37,13 @@
          stn["country"] = "ch"
          stn["operator"] = "ch"
          stn["siteid"] = "8503000"  # Zuerich HB - sensible default until the user searches their own stop
-@@ -205,7 +207,7 @@
+@@ -205,7 +225,9 @@
      dest = str(row[2])
      mins = str(row[3])
      raw_color = row[5] if len(row) > 5 else ""
 -    raw_delay = row[6] if len(row) > 6 else ""
++    if not raw_color:
++        raw_color = _fallback_color(row[1])
 +    raw_delay = str(row[6] or "") if len(row) > 6 else ""  # andere bronnen kunnen een getal sturen
  
      color_mode = int(varinit.settings.get("vbz_color", 1))
