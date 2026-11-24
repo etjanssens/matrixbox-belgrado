@@ -1,31 +1,94 @@
 --- a/departures/skins/vbz/renderer.py
 +++ b/departures/skins/vbz/renderer.py
-@@ -156,6 +156,24 @@
-     bg = _hex_to_rgb(parts[0]) if len(parts) > 0 else None
-     fg = _hex_to_rgb(parts[1]) if len(parts) > 1 else None
+@@ -158,6 +158,87 @@
      return _finish_color(bg, fg)
+ 
+ 
++# Bronnen zonder eigen lijnkleur (o.a. Zweden via T-Skylt) zouden allemaal grijs worden. Voor Zweden de
++# officiële kleuren (sl.se, vasttrafik.se, skanetrafiken.se, verder site/logo van de vervoerder; nov 2026),
++# daarna een vaste kleur afgeleid van de lijnnaam (elke lijn steeds dezelfde). Kleur = "achtergrond~tekst~".
 +
-+
-+# Bronnen zonder eigen lijnkleur (o.a. Zweden via T-Skylt) zouden allemaal grijs worden: dan een vaste
-+# huiskleur per vervoerder, anders een vaste kleur afgeleid van de lijnnaam (elke lijn steeds dezelfde).
++# Treinvervoerders komen bij SJ-stations als lijnnaam binnen (kleine letters)
 +_OPERATOR_COLORS = {
-+    "SJ": "fff~000",  # zwart logo op wit
++    "sj": "fff~000~",  # zwart logo op wit
++    "mälartåg": "0046A5~fff~", "norrtåg": "005AAA~fff~", "tåg i bergslagen": "C0311A~fff~",
++    "snälltåget": "F9423A~fff~", "vy": "0A9578~fff~", "arlanda express": "FEF380~30323D~",
++    "västtågen": "006C93~fff~", "upptåget": "EE3B3B~fff~", "krösatåg": "C40000~fff~",
++    "öresundståg": "D72B14~fff~", "pågatåg": "6263AD~fff~", "pågatågen": "6263AD~fff~",
++    "inlandsbanan": "DB1F2C~fff~", "värmlandstrafik": "F9B000~000~", "östgötatrafiken": "E10E1C~fff~",
++    "sl": "CC417F~fff~", "ul": "F1C800~000~", "x-trafik": "E1071A~fff~", "x-tåget": "E1071A~fff~",
++    "dalatrafik": "DD0034~fff~", "skånetrafiken": "DC001B~fff~", "västtrafik": "006C93~fff~",
 +}
++
++# Per vervoerder (stationsinstelling) en soort vervoer: een kleur, of lijn -> kleur met "*" als standaard
++# ("X*" = elke lijn die met X begint). "*" op het hoogste niveau geldt voor elke soort.
++_SL_BLUE_BUS = ("1", "2", "3", "4", "5", "6", "172", "173", "175", "176", "177", "178", "179",
++                "471", "474", "670", "676", "677", "873", "875")
++_SL_RAIL = {"10": "007DB8~fff~", "11": "007DB8~fff~", "13": "D71D24~fff~", "14": "D71D24~fff~",
++            "17": "148541~fff~", "18": "148541~fff~", "19": "148541~fff~",
++            "25": "028387~fff~", "26": "028387~fff~", "27": "9F599A~fff~", "27S": "9F599A~fff~",
++            "28": "9F599A~fff~", "28S": "9F599A~fff~", "29": "9F599A~fff~",
++            "7": "747770~fff~", "12": "627892~fff~", "21": "B75220~fff~", "30": "A36B00~fff~", "31": "A36B00~fff~"}
++_SL_BUS = {"*": "000~fff~"}  # sl.se tekent elke bus zwart, alleen de blåbussar blauw
++for _l in _SL_BLUE_BUS: _SL_BUS[_l] = "0097DA~fff~"
++_SL_TRAIN = dict(_SL_RAIL); _SL_TRAIN["*"] = "CC417F~fff~"  # pendeltåg
++
++_VT_TRAM = {"1": "FFFFFF~006C93~", "2": "FFDD00~006C93~", "3": "0071C1~fff~", "4": "027446~fff~",
++            "5": "C63539~fff~", "6": "F89828~00435C~", "7": "764712~fff~", "8": "A5449A~fff~",
++            "9": "D0EDFB~006C93~", "10": "D8E8B0~006C93~", "11": "000~fff~", "12": "00F0DA~00435C~",
++            "13": "FDCC99~00435C~", "14": "E0CFEC~00435C~", "X": "FFFFFF~C63539~"}
++_VT_BUS = {"*": "FFFF50~0061EB~", "X*": "FFFF50~D400A2~", "100": "FFFF50~D400A2~",
++           "17": "00008E~FFFF50~", "18": "323232~FFFF50~", "19": "E0005B~FFFF50~", "25": "006FDE~FFFF50~"}
++
++_SE_COLORS = {
++    "sl": {"METRO": _SL_RAIL, "TRAIN": _SL_TRAIN, "TRAM": _SL_RAIL, "BUS": _SL_BUS, "SHIP": "007DB8~fff~"},
++    "vt": {"TRAM": _VT_TRAM, "BUS": _VT_BUS, "TRAIN": "006C93~fff~", "SHIP": "006C93~fff~"},
++    "skane": {"BUS": "509E2F~fff~", "TRAM": "509E2F~fff~", "TRAIN": "9B8B7E~fff~"},  # bus 100+: regionbuss
++    "otraf": {"TRAM": {"2": "CD0000~fff~", "3": "008000~fff~"}, "TRAIN": "C97C0E~fff~", "*": "E10E1C~fff~"},
++    "vastmanland": {"*": "00C4EF~000~"}, "dt": {"*": "DD0034~fff~"}, "jlt": {"*": "651E38~fff~"},
++    "krono": {"*": "00943C~fff~"}, "ul": {"TRAIN": "EE3B3B~fff~", "*": "F1C800~000~"},
++    "klt": {"*": "C8102E~fff~"}, "orebro": {"*": "006EB7~fff~"}, "xt": {"*": "E1071A~fff~"},
++    "varm": {"*": "F9B000~000~"}, "norrbotten": {"*": "003F6E~fff~"}, "fe": {"*": "D70000~fff~"},
++    "dintur": {"*": "00964F~fff~"}, "sormland": {"*": "0D8955~fff~"},
++}
++# CircuitPython maakt alleen A-Z klein
++_LOWER = {"Å": "å", "Ä": "ä", "Ö": "ö", "É": "é", "Ü": "ü"}
 +_FALLBACK_COLORS = ("0067b1", "00843d", "7a1f7c", "e87722", "008c95", "c8102e", "b38f00", "5b3f99")
 +
 +
-+def _fallback_color(name):
-+    name = str(name).strip()
-+    if name in _OPERATOR_COLORS:
-+        return _OPERATOR_COLORS[name]
++def _pick(colors, line):
++    if not isinstance(colors, dict):
++        return colors
++    if line in colors:
++        return colors[line]
++    for key in colors:
++        if key.endswith("*") and len(key) > 1 and line.startswith(key[:-1]):
++            return colors[key]
++    return colors.get("*")
++
++
++def _fallback_color(row):
++    name = str(row[1]).strip()
++    color = _OPERATOR_COLORS.get("".join(_LOWER.get(c, c) for c in name.lower()))
++    stn = varinit.settings["stations"]["1"]
++    if not color and stn.get("country") == "se":
++        op = _SE_COLORS.get(stn.get("operator"), {})
++        mode = row[7] if len(row) > 7 else ""
++        color = _pick(op.get(mode), name) or _pick(op.get("*"), name)
++        if stn.get("operator") == "skane" and mode == "BUS" and name.isdigit() and int(name) >= 100:
++            color = "FEC900~000~"  # regionbuss
++    if color:
++        return color
 +    h = 0
 +    for c in name:
 +        h = (h * 31 + ord(c)) & 0xFFFF
 +    return _FALLBACK_COLORS[h % len(_FALLBACK_COLORS)]
- 
- 
++
++
  def _width(text, font_index):
-@@ -192,8 +210,10 @@
+     f = varinit.fonts[font_index]
+     total = 0
+@@ -192,8 +273,10 @@
  
  
  def _ensure_station():
@@ -37,13 +100,13 @@
          stn["country"] = "ch"
          stn["operator"] = "ch"
          stn["siteid"] = "8503000"  # Zuerich HB - sensible default until the user searches their own stop
-@@ -205,7 +225,9 @@
+@@ -205,7 +288,9 @@
      dest = str(row[2])
      mins = str(row[3])
      raw_color = row[5] if len(row) > 5 else ""
 -    raw_delay = row[6] if len(row) > 6 else ""
 +    if not raw_color:
-+        raw_color = _fallback_color(row[1])
++        raw_color = _fallback_color(row)
 +    raw_delay = str(row[6] or "") if len(row) > 6 else ""  # andere bronnen kunnen een getal sturen
  
      color_mode = int(varinit.settings.get("vbz_color", 1))

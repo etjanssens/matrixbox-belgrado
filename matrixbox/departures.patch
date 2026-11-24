@@ -69,7 +69,7 @@
          date = date.split("\r\n")[0]
          varinit.currenttime = convert_date(date)
      except: pass
-@@ -529,6 +540,8 @@
+@@ -529,10 +540,12 @@
              if not int(all["direction_code"]) or not int(direction) or int(direction) == int(all["direction_code"]):
                  _minsleft = str(all["expected"].split("T")[1][:5]) if clocktime else minsleft
                  if line["id"] == "0": line["id"] = ""
@@ -78,6 +78,11 @@
                  try: 
                      delay = all["deviations"][0] if rt_indicator else ""
                  except: delay = ""
+-                dep = ["0", str(line["id"]), delay + all["destination"], _minsleft, str(all["direction_code"]), all.get("color", ""), all.get("delay") or ""]
++                dep = ["0", str(line["id"]), delay + all["destination"], _minsleft, str(all["direction_code"]), all.get("color", ""), all.get("delay") or "", line["transport_mode"]]  # [7]: voor lijnkleuren in de VBZ-weergave
+                 _strip_dest = varinit.settings.get("strip_dest", [])
+                 if isinstance(_strip_dest, list):
+                     for _sd in _strip_dest:
 @@ -571,7 +584,8 @@
      else:
        try: 

@@ -94,7 +94,7 @@ python3 matrixbox/thai_font.py font_large.py
 
 `strlen` in `functions.py` telt tekens die het actieve font niet kent als `_` (net als bij het tekenen); vroeger gaf dat een KeyError en viel de app terug naar het hoofdmenu.
 
-De VBZ-weergave (`departures/skins/vbz/renderer.py`, ook buiten de hoofdpatch) zette elk niet-Zwitsers station terug naar Zürich HB. `matrixbox/vbz-renderer.patch` laat elk land toe; opnieuw toepassen met `patch -p1 < matrixbox/vbz-renderer.patch` vanuit de root van het bord. Bronnen zonder eigen lijnkleur (zoals SJ en de rest van Zweden) krijgen daarin een vaste kleur: SJ wit met zwart, de rest een kleur afgeleid van de lijn- of vervoerdersnaam (`_OPERATOR_COLORS` voor een vaste huiskleur).
+De VBZ-weergave (`departures/skins/vbz/renderer.py`, ook buiten de hoofdpatch) zette elk niet-Zwitsers station terug naar Zürich HB. `matrixbox/vbz-renderer.patch` laat elk land toe; opnieuw toepassen met `patch -p1 < matrixbox/vbz-renderer.patch` vanuit de root van het bord. Bronnen zonder eigen lijnkleur (zoals Zweden via T-Skylt) krijgen daarin een vaste kleur. Voor Zweden zijn dat de officiële kleuren: `_OPERATOR_COLORS` per treinvervoerder (die bij SJ-stations als lijnnaam binnenkomt; SJ wit met zwart zoals het logo) en `_SE_COLORS` per vervoerder, soort vervoer en lijn (SL-metro en -spoorlijnen, Västtrafik-trams, Skånetrafiken stads-/regionbus, verder de huiskleur). Wat daar niet in staat krijgt een kleur afgeleid van de naam. De soort vervoer komt uit `functions.py` (rij-element 7, in de hoofdpatch).
 
 Het font van die weergave (`skins/vbz/vbz_font.json`) mist van huis uit Å Ä Ö å Ü X x j Q; `matrixbox/vbz_font.py` tekent ze erbij:
 
